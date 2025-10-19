@@ -25,13 +25,27 @@ High‑fidelity React 18 dashboard implementing the PRISM design system with Tai
 - Setup
 - Build & Deploy
 - Project Structure
+- Domain Glossary
+- Coding Standards
+- Extension Guide
+- Data Integration Plan
+- Performance & Bundling
 - Accessibility
+- Browser Support
+- Troubleshooting
+- Onwards Research
+- Roadmap
 - Keyboard Shortcuts
 - Credits
 
 ## Overview
 
-This repository recreates the PRISM Dashboard UI (Figma source: https://www.figma.com/design/ZNRC96bAw6M2Xo7TvluNxo/PRISM-Dashboard-UI-Design) as a coded reference implementation. It emphasizes design tokens, accessible primitives, and modular views to make the UI easy to extend with real data.
+This repository recreates the PRISM Dashboard UI (Figma source: https://www.figma.com/design/ZNRC96bAw6M2Xo7TvluNxo/PRISM-Dashboard-UI-Design) as a code-first, documented baseline. It emphasizes design tokens, accessible primitives, and modular views so engineers can extend with real data quickly.
+
+Assumptions and scope:
+- Single-package Vite app optimized for static hosting (no SSR/routing library; views are conditionally rendered).
+- TypeScript usage is idiomatic; ESLint/Prettier not yet configured (see Roadmap).
+- No backend or network fetches; demo data is colocated for determinism and quick iteration.
 
 ## Feature Highlights
 
@@ -43,37 +57,50 @@ This repository recreates the PRISM Dashboard UI (Figma source: https://www.figm
 
 ## Tech Stack
 
-- React 18 + TypeScript
-- Vite 6 (SWC React plugin) for dev/build
-- Tailwind CSS v4 reset/utilities (`src/index.css`)
-- Radix UI headless primitives wrapped locally
-- Recharts for charts, Embla Carousel for galleries
-- Lucide icons, cmdk for command palette
+- React 18.3 + TypeScript
+- Vite 6 with `@vitejs/plugin-react-swc` (SWC transforms) for fast HMR and esbuild pre-bundling
+- Tailwind CSS v4 reset/utilities (`src/index.css`) and PRISM tokens (`src/styles/globals.css`)
+- Radix UI headless primitives wrapped under `src/components/ui/*`
+- Recharts (2.x) for charting; Embla Carousel (8.x) for galleries
+- `lucide-react` for icons; `cmdk` for the command palette
+- Node 18+ recommended (Node 20 LTS supported)
 
 ## Architecture
 
-- App Shell (`src/App.tsx`): Layout, navigation, view switching, toggles (glass effects, palette visibility).
-- View Modules (`src/components/*.tsx`): Self‑contained feature views (Design System, Overview, Board, Table, Inspector, PlanTM, Automations, Empty States, Search Palette).
-- UI Primitives (`src/components/ui/*`): Typed wrappers around Radix UI components with PRISM token defaults and utility helpers.
-- Styling (`src/index.css`, `src/styles/globals.css`): Tailwind v4 layers + a design‑token sheet supplying surfaces, text, brand, strokes, focus, glass, chart palettes, and typography scale.
-- State: Local React state; no global store required for showcase.
+- App Shell (`src/App.tsx`):
+  - Layout: two‑pane with left navigation and content area.
+  - View switching: union type `View` controls which feature module renders.
+  - UI toggles: glass effects toggle, palette visibility (⌘/Ctrl+K).
+  - No router or global store; keeps demo deterministic and lightweight.
+- Feature Modules (`src/components/*.tsx`):
+  - Each module owns layout, demo data, and interactions (e.g., `Overview.tsx` defines KPI arrays and chart configs).
+  - No cross‑module coupling; data is colocated to encourage modularization.
+- UI Primitives (`src/components/ui/*`):
+  - Thin wrappers around Radix primitives unify tokens, classNames, and accessible defaults.
+  - Utilities: `tailwind-merge` for class de‑duplication; `class-variance-authority` for variant APIs.
+- Styling (`src/index.css`, `src/styles/globals.css`):
+  - Tailwind v4 reset and utilities; design tokens exported as CSS variables and mapped into Tailwind via `@theme inline`.
+  - Scrollbars, reduced‑motion, and global typography live in `globals.css`.
+- Build & Dev Config (`vite.config.ts`):
+  - React SWC plugin, `target: 'esnext'`, `outDir: 'build'`, dev `server.port: 3000` with `open: true`.
+  - Aliases pin popular packages to specific versions to avoid import mismatches.
 
 ```
 [App Shell]
-   ├─ toggles / routing-by-view
-   └─ renders one [View Module]
+   ├─ union View type + state toggles
+   └─ renders one [Feature Module]
         ├─ consumes [UI Primitives]
-        └─ styled via [PRISM Tokens]
+        └─ themed by [PRISM Tokens]
 ```
 
 ## Theming Strategy
 
-Custom properties in `src/styles/globals.css` define the PRISM palette and semantics. Tailwind v4 `@layer` + `@theme inline` expose tokens as utilities and variables.
+Design tokens in `src/styles/globals.css` serve as the single source of truth and are consumed both via Tailwind utilities and directly as CSS variables.
 
 Core token groups:
-- Surfaces: `--surface-0 … --surface-3` + overlays
+- Surfaces: `--surface-0 … --surface-3` + `--overlay-scrim`
 - Text: `--text-high`, `--text-med`, `--text-subtle`
-- Brand/Accents: `--brand-cyan`, `--brand-violet`, info/success/warning/danger
+- Brand/Accents: `--brand-cyan`, `--brand-violet`, `--accent-*`
 - Strokes/Focus: `--stroke-low/med/high`, `--focus-ring`
 - Glass: `--glass-bg`, `--glass-stroke`
 - Charts: Okabe–Ito palette (`--chart-okabe-1 … 8`)
@@ -104,19 +131,22 @@ Radix‑based primitives live under `src/components/ui/` and are themed with PRI
 
 ## Visualization Stack
 
-- Recharts drives analytics in `Overview.tsx` (`ResponsiveContainer`, `BarChart`, `LineChart`, `Bar`, `Line`) with token‑mapped colors and accessible axes.
+- Recharts in `Overview.tsx` (`ResponsiveContainer`, `BarChart`, `LineChart`, `Bar`, `Line`), with axes and colors sourced from tokens.
 - Embla Carousel powers gallery‑style content where applicable.
 
 ## Setup
 
-Requirements: Node 18+ and npm.
+Requirements:
+- Node 18+ (Node 20 LTS supported)
+- npm 9+
 
+Commands:
 ```bash
 npm install
 npm run dev
 ```
 
-Open the dev URL (typically `http://localhost:5173`). Use ⌘/Ctrl + K for the command palette. Toggle “Glass Effects” in the left rail to compare glass vs. matte overlays.
+The dev server opens automatically on `http://localhost:3000`. Use ⌘/Ctrl + K for the command palette. Toggle “Glass Effects” in the left rail to compare glass vs. matte overlays.
 
 ## Build & Deploy
 
@@ -124,7 +154,9 @@ Open the dev URL (typically `http://localhost:5173`). Use ⌘/Ctrl + K for the c
 npm run build
 ```
 
-Outputs optimized assets to `dist/` (Rollup via Vite). Deploy `dist/` to any static host/CDN (e.g., Netlify, Vercel, S3, Cloudflare Pages).
+- Output directory: `build/` (configured in `vite.config.ts`).
+- Target: modern evergreen browsers (`esnext`).
+- Hosting: Any static host/CDN (Netlify, Vercel, S3/CloudFront, Cloudflare Pages). Configure base path if served under a subpath.
 
 ## Project Structure
 
@@ -146,12 +178,94 @@ Outputs optimized assets to `dist/` (Rollup via Vite). Deploy `dist/` to any sta
 └── vite.config.ts
 ```
 
+Notes:
+- `src/components/ui/*` is the integration surface for Radix—extend or theme here before feature modules.
+- `src/components/figma/*` contains small helpers used to mirror Figma semantics during asset loading.
+
+## Domain Glossary
+
+- TTFV (Time To First Value): Time from user entry to perceiving delivered value; proxy for UX latency.
+- Cycle Time: Average time from work start to completion; indicates throughput.
+- Lead Time: Time from ideation to delivery; spans backlog → shipped.
+- PR Aging: Count of open PRs exceeding a time threshold (e.g., 48h).
+- WIP Breach: Number of active items above WIP limit; signals process contention.
+- Error Budget: Remaining allowable error rate before SLO breach.
+
+The demo values live in `Overview.tsx` for consistent UI behavior.
+
+## Coding Standards
+
+- TypeScript: prefer explicit props and discriminated unions for variants.
+- Styling: prefer semantic utilities (`bg-surface-2`, `text-text-med`); use inline CSS vars for specific token use.
+- Components: keep presentational and data concerns colocated within each feature module for this demo; extract to shared hooks when integrating real data.
+- Commits: Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`) to enable changelog automation later.
+
+## Extension Guide
+
+Add a new view:
+1. Create `src/components/MyView.tsx` and implement UI.
+2. Extend the `View` union in `src/App.tsx` and add a `NavItem` entry.
+3. Optionally add a command in the command palette for quick access.
+
+Add a new Radix primitive wrapper:
+1. Start from a similar adapter in `src/components/ui/` (e.g., `dialog.tsx`).
+2. Expose variants with `class-variance-authority` and theme with PRISM tokens.
+3. Validate focus ring, reduced‑motion behavior, and ARIA props.
+
+Token changes:
+1. Update variables in `src/styles/globals.css`.
+2. If exposing as utilities, mirror in the `@theme inline` mapping.
+
+## Data Integration Plan
+
+- Query Layer: Introduce TanStack Query for fetch lifecycles, caching, and retry/backoff. Keep view modules declarative and fetch data in boundaries/hooks.
+- Types: Define API contracts via zod or OpenAPI codegen to preserve type safety.
+- Loading States: Use skeletons and progress from `ui/` primitives; avoid layout shift.
+- Virtualization: Adopt `@tanstack/react-virtual` for large tables/boards.
+- Errors: Centralize toasts (sonner) and status banners; map HTTP errors to clear UX language.
+
+## Performance & Bundling
+
+- Bundles: Code‑split heavy views if they become data‑rich (dynamic `import()` per view).
+- Images: Prefer vector or tiny thumbnails; lazy‑load non‑critical imagery.
+- Effects: Glass blur is restricted to overlays; avoid on large canvases.
+- Recharts: Limit tick counts and point density; memoize datasets and components.
+- Vite: Inspect bundle using a visualizer (optional) and keep `esnext` targets for modern browsers.
+
 ## Accessibility
 
-- WCAG AA contrast across dark surfaces; clear focus rings via `--focus-ring`.
-- Radix primitives ensure keyboard operability, ARIA roles, focus management, and escape‑to‑close behaviors.
-- Reduced‑motion query disables non‑essential animation; matte fallbacks for glass overlays.
-- Semantic headings and labels in key views; table/graph text sized for legibility (`--text-meta`/`--text-micro` carefully scoped).
+- Color: WCAG AA contrast on dark surfaces; focus rings via `--focus-ring` maintain visibility.
+- Interaction: Radix primitives ensure keyboard operability, ARIA roles, focus trapping, and dismiss patterns.
+- Motion: `prefers-reduced-motion` disables non‑essential animation; glass overlays fall back to matte when needed.
+- Semantics: Headings/labels present; legible scales for tables and charts; descriptive copy near charts.
+
+## Browser Support
+
+- Target: evergreen browsers (Chromium, Firefox, Safari) with ESNext features.
+- For legacy support later, reduce `build.target` and add polyfills.
+
+## Troubleshooting
+
+- Blank page after start: ensure Node ≥ 18 and a clean install (`rm -rf node_modules && npm i`).
+- Port conflict: dev server runs on `3000`; change `server.port` in `vite.config.ts` if needed.
+- Styles unthemed: confirm `src/styles/globals.css` is imported and variables resolve; check class collisions.
+
+## Onwards Research
+
+- React 18 concurrent rendering and transitions
+- Tailwind CSS v4 `@layer` + `@theme inline`
+- Radix UI accessibility patterns and anatomy
+- Recharts customization and accessibility considerations
+- Okabe–Ito color‑blind safe palette
+- WAI‑ARIA Authoring Practices, WCAG 2.2 quick reference
+
+## Roadmap
+
+- Tooling: add ESLint + Prettier + TypeScript strict config; Husky pre‑commit hooks.
+- Testing: Vitest + React Testing Library; optional visual regression with Storybook + Chromatic.
+- Data: integrate TanStack Query and API typing (zod/OpenAPI).
+- Performance: code‑split data‑heavy views; consider router once navigation grows.
+- CI/CD: GitHub Actions to run install/build/lint/test and publish previews.
 
 ## Keyboard Shortcuts
 
