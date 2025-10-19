@@ -13,30 +13,31 @@ High‑fidelity React 18 dashboard implementing the PRISM design system with Tai
 
 </div>
 
-## Table of Contents
+  ## Table of Contents
 
-- Overview
-- Feature Highlights
-- Tech Stack
-- Architecture
-- Theming Strategy
-- Component Catalog
-- Visualization Stack
-- Setup
-- Build & Deploy
-- Project Structure
-- Domain Glossary
-- Coding Standards
-- Extension Guide
-- Data Integration Plan
-- Performance & Bundling
-- Accessibility
-- Browser Support
-- Troubleshooting
-- Onwards Research
-- Roadmap
-- Keyboard Shortcuts
-- Credits
+  - Overview
+  - Feature Highlights
+  - Tech Stack
+  - Architecture
+  - Theming Strategy
+  - Component Catalog
+  - Visualization Stack
+  - Setup
+  - Build & Deploy
+  - Project Structure
+  - Internal Brief Overview
+  - Domain Glossary
+  - Coding Standards
+  - Extension Guide
+  - Data Integration Plan
+  - Performance & Bundling
+  - Accessibility
+  - Browser Support
+  - Troubleshooting
+  - Onwards Research
+  - Roadmap
+  - Keyboard Shortcuts
+  - Credits
 
 ## Overview
 
@@ -158,7 +159,7 @@ npm run build
 - Target: modern evergreen browsers (`esnext`).
 - Hosting: Any static host/CDN (Netlify, Vercel, S3/CloudFront, Cloudflare Pages). Configure base path if served under a subpath.
 
-## Project Structure
+  ## Project Structure
 
 ```
 .
@@ -175,8 +176,38 @@ npm run build
 │   │   ├── figma/               # Fallback helpers
 │   │   └── ui/                  # Radix wrappers + utils
 │   └── guidelines/
-└── vite.config.ts
-```
+  └── vite.config.ts
+  ```
+
+  ## Internal Brief Overview
+
+  This repository includes a comprehensive internal product/architecture brief at `docs/BRIEF.md`. It is intended to give engineers and coding agents everything needed to plan, build, and ship the full PRISM.dashboard system beyond this UI showcase.
+
+  What the brief covers:
+  - BLUF: What PRISM.dashboard is and the role of Task Master (TM)
+  - Why: Motivation and non‑goals for v1
+  - Scope: Core features for v1 and near‑term Core+
+  - Product Principles: Source of truth, layout philosophy, glass/motion discipline, performance/a11y stance
+  - Architecture: Next.js UI+API, Supabase Postgres (+Realtime, +pgvector), MCP bridge to TM, GitHub webhooks, OpenTelemetry
+  - Data Model: SQL DDL for issues, comments, attachments, links, automations, events, documents, embeddings
+  - Workflows: PRD→Plan chain, structural edit rules (always via TM), smart‑commit linking, automations
+  - API: Essential REST routes and a JQL‑lite query model with examples
+  - MCP Tools: The exact tools invoked on TM and server launch guidance
+  - CLI: `prism` commands with common flags
+  - UI/UX Spec: Shell, Overview KPIs, Board/Table, Plan stepper, Inspector tabs, dark theme, motion, a11y, performance
+  - Developer Setup: Monorepo layout, env vars, Supabase, dev runbook
+  - Testing & Acceptance: Unit/integration/a11y/perf criteria and v1 release checklist
+  - Risks & Mitigations: Drift, webhooks, perf, security
+  - Roadmap: Phase 1 (spine), Phase 2 (fit & finish), Phase 3 (hardening)
+  - Pre‑reading & Appendices: Figma prompts, CSV templates, JQL grammar
+  - Open Questions: Status/workflow, WIP, automations, retention, brand hexes
+
+  Target architecture vs current repo:
+  - Target (brief): Next.js App Router with API routes, Supabase Postgres (+Realtime, +pgvector), TM MCP bridge, GitHub webhooks, OTel.
+  - Current (this repo): Vite + React 18 UI showcase with Tailwind v4 tokens, Radix wrappers, demo views and charts.
+  - Migration strategy is outlined in README sections (Architecture, Extension Guide, Data Integration Plan) and elaborated in `docs/BRIEF.md`.
+
+  Link: See the full brief in `docs/BRIEF.md`.
 
 Notes:
 - `src/components/ui/*` is the integration surface for Radix—extend or theme here before feature modules.
