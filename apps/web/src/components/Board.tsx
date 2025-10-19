@@ -1,7 +1,7 @@
-import { useBoard } from "../hooks/useBoard";
+import { useState, useRef } from "react";
+import { useBoard, findIssue } from "../hooks/useBoard";
 import { STATUS_META } from "../config/board";
 import { NEXT_STATES, type Status } from "../config/workflow";
-import { useState } from "react";
 import { BoardFilters, type BoardFiltersValue } from "./BoardFilters";
 import { useToast } from "./Toast";
 
@@ -12,6 +12,56 @@ function cls(...a: (string | false | undefined)[]) {
 export default function Board() {
   const [flt, setFlt] = useState<BoardFiltersValue>({});
   const { columns, loading, error, refresh, totals, transition } = useBoard(flt);
+  const push = useToast();
+
+  // Drag state
+  const draggingRef = useRef<{ id: string; from: Status } | null>(null);
+  const [hoverStatus, setHoverStatus] = useState<Status | null>(null);
+  const [hoverLegal, setHoverLegal] = useState(false);
+
+  function onDragStart(issue: any, from: Status, ev: React.DragEvent) {
+    draggingRef.current = { id: issue.id, from };
+    ev.dataTransfer.setData("text/plain", issue.id);
+    ev.dataTransfer.effectAllowed = "move";
+    (ev.currentTarget as HTMLElement).classList.add("drag-ghost");
+  }
+  function onDragEnd(ev: React.DragEvent) {
+    (ev.currentTarget as HTMLElement).classList.remove("drag-ghost");
+    draggingRef.current = null;
+    setHoverStatus(null);
+  }
+
+  async function onDrop(to: Status, ev: React.DragEvent) {
+    ev.preventDefault();
+    const id = ev.dataTransfer.getData("text/plain");
+    const grabbed = findIssue(columns as any, id);
+    setHoverStatus(null);
+    if (!grabbed) return;
+    const cur = grabbed.issue;
+    const from = grabbed.from;
+    if (from === to) return;
+    const legal = NEXT_STATES[from]?.includes(to);
+    if (!legal) {
+      push({ kind: "error", text: `Illegal transition: ${from} → ${to}` });
+      return;
+    }
+    try {
+      await transition(cur, to);
+      push({ kind: "success", text: `${cur.key} → ${to}` });
+    } catch (e: any) {
+      push({ kind: "error", text: e?.message || "Transition failed" });
+    }
+  }
+
+  function onDragOver(to: Status, ev: React.DragEvent) {
+    ev.preventDefault();
+    if (!draggingRef.current) return;
+    const { from } = draggingRef.current;
+    setHoverStatus(to);
+    const ok = NEXT_STATES[from]?.includes(to) ?? false;
+    setHoverLegal(ok);
+    ev.dataTransfer.dropEffect = ok ? "move" : "none";
+  }
 
   return (
     <div className="p-8 space-y-6 overflow-auto h-full">
@@ -52,7 +102,32 @@ export default function Board() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
           {columns.map((col) => (
-            <BoardColumn key={col.status} {...col} onTransition={transition} />
+            <BoardColumn
+              key={col.status}
+              {...col}
+              hover={hoverStatus === (col.status as Status)}
+              hoverLegal={hoverLegal}
+              onDragOver={(ev) => onDragOver(col.status as Status, ev)}
+              onDrop={(ev) => onDrop(col.status as Status, ev)}
+            >
+              {col.items.map((it) => (
+                <Card
+                  key={it.id}
+                  issue={it}
+                  status={col.status as Status}
+                  onDragStart={onDragStart}
+                  onDragEnd={onDragEnd}
+                  onTransition={async (i, to) => {
+                    try {
+                      await transition(i, to);
+                      push({ kind: "success", text: `${i.key} → ${to}` });
+                    } catch (e: any) {
+                      push({ kind: "error", text: e?.message || "Transition failed" });
+                    }
+                  }}
+                />
+              ))}
+            </BoardColumn>
           ))}
         </div>
       )}
@@ -62,14 +137,23 @@ export default function Board() {
 
 type ColumnProps = ReturnType<typeof useBoard>["columns"][number] & {
   onTransition?: (issue: any, to: Status) => Promise<void>;
+  hover?: boolean;
+  hoverLegal?: boolean;
+  onDragOver?: (ev: React.DragEvent) => void;
+  onDrop?: (ev: React.DragEvent) => void;
+  children?: React.ReactNode;
 };
 
-function BoardColumn({ status, items, wipLimit, count, breached, onTransition }: ColumnProps) {
+function BoardColumn({ status, items, wipLimit, count, breached, hover, hoverLegal, onDragOver, onDrop, children }: ColumnProps) {
   const meta = STATUS_META[status as keyof typeof STATUS_META];
+  const dropClass = hover ? (hoverLegal ? "outline outline-1 outline-cyan-300/35 bg-cyan-300/5" : "outline outline-1 outline-amber-500/45 bg-amber-500/6") : "";
   return (
     <section
-      className={cls('rounded-xl')}
+      className={cls('rounded-xl border transition-colors', dropClass)}
       style={{ border: '1px solid var(--stroke-low)', background: breached ? 'rgba(245, 158, 11, 0.06)' : 'var(--surface-2)' }}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      aria-dropeffect="move"
     >
       <header className="sticky top-0 z-10 px-3 py-2 flex items-center gap-2"
         style={{ backdropFilter: 'blur(6px)', color: 'var(--text-high)' }}
@@ -90,27 +174,20 @@ function BoardColumn({ status, items, wipLimit, count, breached, onTransition }:
         {items.length === 0 ? (
           <div className="text-xs px-2 py-8 text-center" style={{ color: 'var(--text-subtle)' }}>No items</div>
         ) : (
-          items.map((it) => <Card key={it.id} issue={it} onTransition={onTransition} />)
+          children
         )}
       </div>
     </section>
   );
 }
 
-function Card({ issue, onTransition }: { issue: any; onTransition?: (i:any,to:Status)=>Promise<void> }) {
+function Card({ issue, status, onTransition, onDragStart, onDragEnd }: { issue: any; status: Status; onTransition?: (i:any,to:Status)=>Promise<void>; onDragStart?: (issue:any, from:Status, ev:React.DragEvent)=>void; onDragEnd?: (ev:React.DragEvent)=>void }) {
   const [menu, setMenu] = useState(false);
-  const push = useToast();
-  const legal = NEXT_STATES[issue.status as Status] || [];
+  const legal = NEXT_STATES[status] || [];
 
   async function handle(to: Status) {
     setMenu(false);
-    if (!onTransition) return;
-    try {
-      await onTransition(issue, to);
-      push({ kind: 'success', text: `Moved ${issue.key} → ${to}` });
-    } catch (e: any) {
-      push({ kind: 'error', text: e?.message || 'Transition failed' });
-    }
+    await onTransition?.(issue, to);
   }
 
   return (
@@ -118,7 +195,10 @@ function Card({ issue, onTransition }: { issue: any; onTransition?: (i:any,to:St
       className="group rounded-lg transition-colors focus-within:ring-2"
       style={{ border: '1px solid var(--stroke-low)', background: 'var(--surface-1)' }}
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key.toLowerCase() === 't' && legal.length) { setMenu(v=>!v); e.preventDefault(); } }}
+      draggable
+      onDragStart={(ev)=>onDragStart?.(issue, status, ev)}
+      onDragEnd={(ev)=>onDragEnd?.(ev)}
+      onKeyDown={(e) => { if (e.key.toLowerCase() === 't' && legal.length) { setMenu(v=>!v); e.preventDefault(); } if ((e.key === ']' || e.key === '}') && legal.length){ handle(legal[0]); e.preventDefault(); } if ((e.key === '[' || e.key === '{') && legal.length){ handle(legal[legal.length-1]); e.preventDefault(); } }}
     >
       <div className="p-2.5">
         <div className="flex items-center gap-2">

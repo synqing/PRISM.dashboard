@@ -119,3 +119,11 @@ export function useBoard(filters?: { category?: string; assignee?: string }) {
 
   return { columns, loading, error, refresh, totals, transition };
 }
+
+export function findIssue(columns: BoardColumn[], id: string) {
+  for (const col of columns) {
+    const found = col.items.find((i: any) => i.id === id || i.key === id);
+    if (found) return { issue: found, from: col.status as Status };
+  }
+  return null;
+}
