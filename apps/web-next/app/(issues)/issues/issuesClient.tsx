@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import InspectorDrawer from "../../../components/InspectorDrawer";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -62,4 +62,3 @@ export default function IssuesClient({ initialItems, total }:{ initialItems: Iss
     </main>
   );
 }
-

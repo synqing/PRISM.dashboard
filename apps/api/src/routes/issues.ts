@@ -162,6 +162,45 @@ issues.get("/:keyOrId", async (req, res) => {
   res.json(record.rows[0]);
 });
 
+issues.get("/:key/comments", async (req, res) => {
+  const key = req.params.key;
+  const issue = await query("select id from issue where key=$1", [key]);
+  if (!issue.rowCount) {
+    res.status(404).json({ error: "not found" });
+    return;
+  }
+  const rows = await query(
+    "select id, author, body, created_at from comment where issue_id=$1 order by created_at desc",
+    [issue.rows[0].id],
+  );
+  res.json({ items: rows.rows });
+});
+
+issues.get("/:key/activity", async (req, res) => {
+  const key = req.params.key;
+  const issueRow = await query<{ id: string }>("select id from issue where key=$1", [key]);
+  if (!issueRow.rowCount) {
+    res.status(404).json({ error: "not found" });
+    return;
+  }
+  const events = await query(
+    `select name, payload, created_at
+       from event_log
+      where payload ? 'key' and payload->>'key' = $1
+        and name in ('issue.transition','comment.created','pr.linked')
+      order by created_at desc`,
+    [key],
+  );
+  const commentEvents = await query(
+    "select 'comment.created' as name, jsonb_build_object('key',$1,'author',author,'at',created_at) as payload, created_at from comment where issue_id=$2",
+    [key, issueRow.rows[0].id],
+  );
+  const combined = [...events.rows, ...commentEvents.rows].sort(
+    (a: any, b: any) => new Date(b.created_at || b.payload?.at || 0).valueOf() - new Date(a.created_at || a.payload?.at || 0).valueOf(),
+  );
+  res.json({ items: combined });
+});
+
 issues.patch("/:keyOrId", authGuard, async (req, res) => {
   const parsed = IssueUpdate.safeParse(req.body);
   if (!parsed.success) {
@@ -215,6 +254,10 @@ issues.post("/:key/transition", authGuard, async (req, res) => {
   }
 
   const updated = await query("update issue set status=$1 where id=$2 returning *", [parsed.data.to, issue.id]);
+  await query(
+    "insert into event_log(source,name,payload) values ('api','issue.transition',$1::jsonb)",
+    [JSON.stringify({ key, from: issue.status, to: parsed.data.to, at: new Date().toISOString() })],
+  );
   res.json(updated.rows[0]);
 });
 
@@ -235,6 +278,10 @@ issues.post("/:key/comment", authGuard, async (req, res) => {
   const comment = await query(
     "insert into comment(issue_id, author, body) values ($1,$2,$3) returning *",
     [issue.rows[0].id, author, body],
+  );
+  await query(
+    "insert into event_log(source,name,payload) values ('api','comment.created',$1::jsonb)",
+    [JSON.stringify({ key, author, at: new Date().toISOString() })],
   );
   res.status(201).json(comment.rows[0]);
 });
