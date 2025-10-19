@@ -72,6 +72,10 @@ Components: Next.js App Router UI + API routes (Vercel AI SDK), Supabase Postgre
 
 SQL DDL for `space`, `issue`, `comment`, `attachment`, `link`, `automation_rule`, `event_log`, optional `document` + `embedding` (pgvector). Keys: `CategoryName-###`.
 
+Templates
+- Full schema with indexes and optional FTS/pgvector: `supabase/schema.sql`
+- Example environment file: `docs/ENV.example`
+
 ---
 
 ## 6) Workflows
@@ -86,7 +90,7 @@ SQL DDL for `space`, `issue`, `comment`, `attachment`, `link`, `automation_rule`
 
 ## 7) API (REST) — essential routes
 
-Create/read/update issues, comments, attachments, transitions; search (JQL‑lite), sync pull/apply; webhooks and automations endpoints. JQL‑lite examples included.
+Create/read/update issues, comments, attachments, transitions; search (JQL‑lite), sync pull/apply; webhooks and automations endpoints. See `docs/API.md` for concrete request/response examples.
 
 ---
 
@@ -98,7 +102,7 @@ Tools: `parse_prd`, `analyze_complexity`, `expand`, `validate_dependencies`, `ge
 
 ## 9) CLI (`prism`) — v1 commands
 
-Plan, issue, link, and sync commands with `--json`, `--dry-run`, `--verbose` flags.
+Plan, issue, link, and sync commands with `--json`, `--dry-run`, `--verbose` flags. See `docs/CLI.md` for usage.
 
 ---
 
@@ -106,11 +110,17 @@ Plan, issue, link, and sync commands with `--json`, `--dry-run`, `--verbose` fla
 
 Shell layout (left rail, top bar, main, sticky Inspector), Overview KPIs, Board/Table, Plan stepper, Inspector tabs, dark theme tokens, motion spec, a11y, performance.
 
+Note on visualization
+- Brief references ECharts; current UI demo uses Recharts. Choose one for v1; both can be themed via PRISM tokens. If switching to ECharts, create a thin adapter that maps token colors and typography.
+
 ---
 
 ## 11) Developer setup (from zero)
 
 Prereqs, monorepo layout (apps/web, apps/cli, packages/*, supabase), environment variables, dev runbook (Supabase start, Next.js dev, TM server, seeding).
+
+Environment templates
+- Copy `docs/ENV.example` into each app/package that needs it and tune per environment. Document required variables near the consuming code.
 
 ---
 
@@ -136,6 +146,10 @@ Phase 1 (spine), Phase 2 (fit & finish), Phase 3 (hardening).
 
 Task Master docs, WCAG 2.2, Kanban/JQL, dark theme/tonal elevation references.
 
+Additional references
+- JQL‑lite mini‑spec and SQL mapping: `docs/JQL.md`
+- Workflow specifics and invariants: `docs/WORKFLOWS.md`
+
 ---
 
 ## 16) Appendices
@@ -153,4 +167,3 @@ Statuses/transition rules, WIP limits, automations for v1, retention policies, b
 ### Handoff mantra
 
 Think in plans (TM owns structure). Mirror for collaboration (PRISM stores metadata & UX). Design for speed and legibility (two‑pane, disciplined glass).
-

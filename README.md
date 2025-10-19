@@ -207,6 +207,13 @@ npm run build
   - Current (this repo): Vite + React 18 UI showcase with Tailwind v4 tokens, Radix wrappers, demo views and charts.
   - Migration strategy is outlined in README sections (Architecture, Extension Guide, Data Integration Plan) and elaborated in `docs/BRIEF.md`.
 
+  Templates and deeper references:
+  - Environment template: `docs/ENV.example`
+  - Database schema (DDL, indexes, RLS placeholders): `supabase/schema.sql`
+  - REST API shapes and examples: `docs/API.md`
+  - JQL‑lite mini‑spec: `docs/JQL.md`
+  - Workflow details and invariants: `docs/WORKFLOWS.md`
+
   Link: See the full brief in `docs/BRIEF.md`.
 
 Notes:
