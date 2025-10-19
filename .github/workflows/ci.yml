@@ -34,9 +34,16 @@ jobs:
         run: |
           pnpm migrate
           pnpm seed
+          psql "$DATABASE_URL" -f apps/api/db/migrations/0002_fulltext.sql
       - name: Build CLI
         run: pnpm --filter @prism/cli build
       - name: Build API
         run: pnpm --filter @prism/api build
-      - name: Smoke (placeholder)
-        run: node -e "console.log('build ok')"
+      - name: Run API (background)
+        run: pnpm --filter @prism/api dev & sleep 2
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/prism
+      - name: FTS smoke
+        run: curl -s "http://localhost:3333/api/issues?q=glin:*&limit=2" | jq '.items | length'
+      - name: Build Next
+        run: pnpm --filter @prism/web-next build

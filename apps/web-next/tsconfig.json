@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "allowJs": false,
+    "baseUrl": ".",
+    "paths": {
+      "@prism/types": ["../../packages/types/src"],
+      "@prism/ui/*": ["../../packages/ui/*"]
+    }
+  }
+}

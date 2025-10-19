@@ -28,6 +28,7 @@ export type ListIssuesResponse = {
   count: number;
   nextCursor: string | null;
   total?: number;
+  wipLimits?: Record<string, number>;
 };
 
 export async function listIssues(params: ListIssuesParams = {}): Promise<ListIssuesResponse> {
@@ -47,6 +48,8 @@ export async function listIssues(params: ListIssuesParams = {}): Promise<ListIss
   const json = (await res.json()) as ListIssuesResponse;
   const headerTotal = Number(res.headers.get("X-Total-Count") || "");
   if (json.total == null && Number.isFinite(headerTotal)) json.total = headerTotal;
+  const wipHdr = res.headers.get("X-Wip-Limits");
+  if (json.wipLimits == null && wipHdr) json.wipLimits = JSON.parse(wipHdr);
   return json;
 }
 

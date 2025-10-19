@@ -47,7 +47,26 @@ export function useBoard(filters?: { category?: string; assignee?: string }) {
         category: filters?.category ? filters.category.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
         assignee: filters?.assignee,
       });
-      setColumns(build(res.items));
+      const serverWip = (res as any).wipLimits as Record<string, number> | undefined;
+      const items = res.items as any[];
+      const bucket = new Map<Status, Issue[]>();
+      WORKFLOW_ORDER.forEach((s) => bucket.set(s, []));
+      for (const it of items) {
+        const s = it.status as Status;
+        if (bucket.has(s)) bucket.get(s)!.push(it);
+      }
+      const cols = WORKFLOW_ORDER.map((s) => {
+        const arr = bucket.get(s)!;
+        const lim = serverWip?.[s] ?? (WIP_LIMITS[s] ?? 0);
+        return {
+          status: s,
+          items: arr,
+          wipLimit: lim,
+          count: arr.length,
+          breached: lim > 0 && arr.length > lim,
+        } as BoardColumn;
+      });
+      setColumns(cols);
     } catch (e: any) {
       setError(e);
     } finally {

@@ -102,7 +102,13 @@ issues.get("/", async (req, res) => {
 
   const total = countRes.rows?.[0]?.n ?? 0;
   res.setHeader("X-Total-Count", String(total));
-  res.json({ items: rows.rows, count: rows.rowCount, nextCursor, total });
+  // Per-space WIP limits (slug 'k1' for now)
+  const cfg = await query<{ wip_limits: any }>(
+    `select wip_limits from space_config where space_id = (select id from space where slug='k1')`
+  );
+  const wip = cfg.rowCount ? cfg.rows[0].wip_limits : {};
+  res.setHeader("X-Wip-Limits", JSON.stringify(wip));
+  res.json({ items: rows.rows, count: rows.rowCount, nextCursor, total, wipLimits: wip });
 });
 
 issues.post("/", authGuard, async (req, res) => {
