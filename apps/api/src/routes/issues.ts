@@ -201,6 +201,72 @@ issues.get("/:key/activity", async (req, res) => {
   res.json({ items: combined });
 });
 
+issues.get("/:key/activity/stream", async (req, res) => {
+  const key = req.params.key;
+  const exists = await query("select 1 from issue where key=$1", [key]);
+  if (!exists.rowCount) {
+    res.status(404).end();
+    return;
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  (res as any).flushHeaders?.();
+
+  const heartbeat = setInterval(() => {
+    res.write(`: hb ${Date.now()}\n\n`);
+  }, 15000);
+
+  let lastTs = new Date(Date.now() - 60_000).toISOString();
+
+  const poll = async () => {
+    try {
+      const ev = await query(
+        `select name, payload, created_at
+           from event_log
+          where payload ? 'key' and payload->>'key' = $1
+            and name in ('issue.transition','comment.created','pr.linked')
+            and created_at > $2
+          order by created_at asc`,
+        [key, lastTs],
+      );
+      const issueRow = await query<{ id: string }>("select id from issue where key=$1", [key]);
+      const comments = await query(
+        `select 'comment.created' as name,
+                jsonb_build_object('key',$1,'author',author,'at',created_at) as payload,
+                created_at
+           from comment
+          where issue_id=$2 and created_at > $3
+          order by created_at asc`,
+        [key, issueRow.rows[0].id, lastTs],
+      );
+      const items = [...ev.rows, ...comments.rows].sort(
+        (a: any, b: any) => new Date(a.created_at || a.payload?.at || 0).valueOf() - new Date(b.created_at || b.payload?.at || 0).valueOf(),
+      );
+      if (items.length) {
+        const last = items[items.length - 1];
+        lastTs = last.created_at || last.payload?.at || lastTs;
+        for (const item of items) {
+          res.write(`event: activity\n`);
+          res.write(`data: ${JSON.stringify(item)}\n\n`);
+        }
+      }
+    } catch (err) {
+      res.write(`event: error\n`);
+      res.write(`data: ${JSON.stringify({ message: "poll failed" })}\n\n`);
+    }
+  };
+
+  const interval = setInterval(poll, 3000);
+  poll().catch(() => {});
+
+  req.on("close", () => {
+    clearInterval(interval);
+    clearInterval(heartbeat);
+  });
+});
+
 issues.patch("/:keyOrId", authGuard, async (req, res) => {
   const parsed = IssueUpdate.safeParse(req.body);
   if (!parsed.success) {

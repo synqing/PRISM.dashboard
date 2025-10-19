@@ -1,6 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { getIssue, getComments, getActivity } from "../lib/api";
+import { getIssue, getComments, getActivity, postComment } from "../lib/api";
+
+const ACTIVITY_EVENTS = new Set(["issue.transition", "comment.created", "pr.linked"]);
+const API_BASE = process.env.NEXT_PUBLIC_PRISM_API_BASE || process.env.PRISM_API_BASE || "http://localhost:3333";
 
 type CommentItem = { id: string; author: string; body: string; created_at: string };
 type ActivityItem = { name: string; payload: any; created_at: string };
@@ -14,6 +17,7 @@ export default function InspectorDrawer({ issueKey, onClose }: Props) {
   const [tab, setTab] = useState<"summary" | "notes" | "deps" | "labels" | "activity" | "comments">("summary");
   const [comments, setComments] = useState<CommentItem[] | null>(null);
   const [activity, setActivity] = useState<ActivityItem[] | null>(null);
+  const [streamErr, setStreamErr] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -45,11 +49,64 @@ export default function InspectorDrawer({ issueKey, onClose }: Props) {
         .catch(() => setComments([]));
     }
     if (tab === "activity" && activity == null) {
+      setStreamErr(null);
       getActivity(issueKey)
         .then((res) => setActivity(res.items))
         .catch(() => setActivity([]));
     }
   }, [issueKey, tab, comments, activity]);
+
+  useEffect(() => {
+    if (tab !== "activity" || !issueKey) return;
+
+    let es: EventSource | null = null;
+    let pollId: ReturnType<typeof setInterval> | null = null;
+    const startPolling = () => {
+      if (!pollId) {
+        pollId = setInterval(() => {
+          getActivity(issueKey)
+            .then((res) => setActivity(res.items))
+            .catch(() => {});
+        }, 10000);
+      }
+    };
+
+    try {
+      setStreamErr(null);
+      es = new EventSource(`${API_BASE}/api/issues/${encodeURIComponent(issueKey)}/activity/stream`);
+      es.addEventListener("activity", (ev) => {
+        try {
+          const data = JSON.parse((ev as MessageEvent).data);
+          if (!ACTIVITY_EVENTS.has(data?.name)) return;
+          setActivity((prev) => [data, ...(prev ?? [])]);
+        } catch (err) {
+          console.warn("Failed to parse SSE activity", err);
+        }
+      });
+      es.addEventListener("error", () => {
+        setStreamErr("Live stream lost; falling back to polling");
+        es?.close();
+        startPolling();
+      });
+    } catch (err) {
+      setStreamErr("SSE not available; using polling");
+      startPolling();
+    }
+
+    return () => {
+      if (es) es.close();
+      if (pollId) clearInterval(pollId);
+    };
+  }, [tab, issueKey]);
+
+  const tabs: [typeof tab, string][] = [
+    ["summary", "Summary"],
+    ["notes", "Notes"],
+    ["deps", "Dependencies"],
+    ["labels", "Labels"],
+    ["activity", "Activity"],
+    ["comments", "Comments"],
+  ];
 
   return (
     <div className="fixed inset-0 z-50" aria-modal="true" role="dialog">
@@ -70,16 +127,7 @@ export default function InspectorDrawer({ issueKey, onClose }: Props) {
           </button>
         </header>
         <div className="px-4 pt-3 border-b border-white/10 flex gap-2 text-xs">
-          {(
-            [
-              ["summary", "Summary"],
-              ["notes", "Notes"],
-              ["deps", "Dependencies"],
-              ["labels", "Labels"],
-              ["activity", "Activity"],
-              ["comments", "Comments"],
-            ] as const
-          ).map(([id, label]) => (
+          {tabs.map(([id, label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -101,8 +149,15 @@ export default function InspectorDrawer({ issueKey, onClose }: Props) {
               {tab === "notes" && <Notes issue={issue} />}
               {tab === "deps" && <Deps issue={issue} />}
               {tab === "labels" && <Labels issue={issue} />}
-              {tab === "activity" && <Activity items={activity} />}
-              {tab === "comments" && <Comments items={comments} />}
+              {tab === "activity" && <Activity items={activity} streamErr={streamErr} />}
+              {tab === "comments" && (
+                <Comments
+                  issueKey={issueKey}
+                  items={comments}
+                  onAdd={(comment) => setComments((prev) => [comment, ...(prev ?? [])])}
+                  onActivity={(item) => setActivity((prev) => [item, ...(prev ?? [])])}
+                />
+              )}
             </div>
           )}
         </div>
@@ -181,46 +236,115 @@ function Labels({ issue }: { issue: any }) {
   );
 }
 
-function Activity({ items }: { items: ActivityItem[] | null }) {
+function Activity({ items, streamErr }: { items: ActivityItem[] | null; streamErr: string | null }) {
   if (items == null) return <div className="text-slate-400">Loading…</div>;
   if (!items.length) return <div className="text-slate-500">No activity</div>;
   return (
-    <ul className="space-y-2">
-      {items.map((e, idx) => (
-        <li key={idx} className="text-slate-300">
-          <div className="text-slate-400 text-xs">
-            {new Date(e.created_at || e.payload?.at || Date.now()).toLocaleString()}
-          </div>
-          {e.name === "issue.transition" && (
-            <span>
-              Transition: <b>{e.payload.from}</b> → <b>{e.payload.to}</b>
-            </span>
-          )}
-          {e.name === "comment.created" && (
-            <span>
-              Comment by <b>{e.payload.author}</b>
-            </span>
-          )}
-          {e.name === "pr.linked" && <span>PR linked</span>}
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-2">
+      {streamErr && <div className="text-amber-400 text-xs">{streamErr}</div>}
+      <ul className="space-y-2">
+        {items.map((e, idx) => (
+          <li key={idx} className="text-slate-300">
+            <div className="text-slate-400 text-xs">
+              {new Date(e.created_at || e.payload?.at || Date.now()).toLocaleString()}
+            </div>
+            {e.name === "issue.transition" && (
+              <span>
+                Transition: <b>{e.payload.from}</b> → <b>{e.payload.to}</b>
+              </span>
+            )}
+            {e.name === "comment.created" && (
+              <span>
+                Comment by <b>{e.payload.author}</b>
+              </span>
+            )}
+            {e.name === "pr.linked" && <span>PR linked</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
-function Comments({ items }: { items: CommentItem[] | null }) {
+function Comments({
+  issueKey,
+  items,
+  onAdd,
+  onActivity,
+}: {
+  issueKey: string;
+  items: CommentItem[] | null;
+  onAdd: (comment: CommentItem) => void;
+  onActivity: (item: ActivityItem) => void;
+}) {
+  const [author, setAuthor] = useState<string>("");
+  const [body, setBody] = useState<string>("");
+  const [posting, setPosting] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
   if (items == null) return <div className="text-slate-400">Loading…</div>;
-  if (!items.length) return <div className="text-slate-500">No comments yet</div>;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!author.trim() || !body.trim()) return;
+    setPosting(true);
+    setFeedback(null);
+    try {
+      const comment = await postComment(issueKey, author.trim(), body.trim());
+      onAdd(comment);
+      onActivity({
+        name: "comment.created",
+        payload: { key: issueKey, author: comment.author, at: comment.created_at },
+        created_at: comment.created_at,
+      });
+      setBody("");
+      setFeedback("Comment posted");
+    } catch (err: any) {
+      setFeedback(err?.message || "Failed to post comment");
+    } finally {
+      setPosting(false);
+    }
+  };
+
   return (
-    <ul className="space-y-3">
-      {items.map((c) => (
-        <li key={c.id} className="border-b border-white/10 pb-2">
-          <div className="text-xs text-slate-400">
-            {c.author} — {new Date(c.created_at).toLocaleString()}
-          </div>
-          <div className="text-slate-200 whitespace-pre-wrap">{c.body}</div>
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-4">
+      <form className="space-y-2" onSubmit={handleSubmit}>
+        <input
+          className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-slate-200 placeholder:text-slate-500"
+          placeholder="Your name"
+          value={author}
+          onChange={(e) => setAuthor(e.target.value)}
+        />
+        <textarea
+          className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-slate-200 placeholder:text-slate-500 min-h-[80px]"
+          placeholder="Write a comment…"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+        />
+        <div className="flex items-center gap-2">
+          <button
+            className="px-3 py-1.5 rounded bg-white/10 hover:bg-white/15 border border-white/10 text-sm"
+            disabled={posting || !author.trim() || !body.trim()}
+            type="submit"
+          >
+            {posting ? "Posting…" : "Post comment"}
+          </button>
+          {feedback && <span className="text-xs text-slate-400">{feedback}</span>}
+        </div>
+      </form>
+      {items.length === 0 ? (
+        <div className="text-slate-500">No comments yet</div>
+      ) : (
+        <ul className="space-y-3">
+          {items.map((c) => (
+            <li key={c.id} className="border-b border-white/10 pb-2">
+              <div className="text-xs text-slate-400">
+                {c.author} — {new Date(c.created_at).toLocaleString()}
+              </div>
+              <div className="text-slate-200 whitespace-pre-wrap">{c.body}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
