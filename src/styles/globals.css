@@ -1,0 +1,228 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* PRISM Design System - Dark Theme (Primary) */
+  
+  /* A) Surfaces - Dark ink stack with tonal elevation */
+  --surface-0: #0B0D12;
+  --surface-1: #121826;
+  --surface-2: #1B2232;
+  --surface-3: #223049;
+  --overlay-scrim: rgba(8, 12, 18, 0.60);
+  
+  /* B) Text - WCAG AA compliant on surface/1 */
+  --text-high: rgba(255, 255, 255, 0.92);
+  --text-med: rgba(255, 255, 255, 0.72);
+  --text-subtle: rgba(255, 255, 255, 0.56);
+  
+  /* C) Brand & Accents */
+  --brand-cyan: #6EE7F3;
+  --brand-violet: #A78BFA;
+  --accent-info: #3BA0FF;
+  --accent-success: #22D3A6;
+  --accent-warning: #F59E0B;
+  --accent-danger: #EF4444;
+  
+  /* D) UI Strokes & Focus */
+  --stroke-low: rgba(255, 255, 255, 0.12);
+  --stroke-med: rgba(255, 255, 255, 0.20);
+  --stroke-high: rgba(255, 255, 255, 0.28);
+  --focus-ring: #A7E9EF;
+  
+  /* E) Glass (for overlays only) */
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-stroke: rgba(255, 255, 255, 0.16);
+  --glass-highlight: radial-gradient(circle at top left, rgba(255, 255, 255, 0.12), transparent);
+  
+  /* F) Chart Palettes */
+  --chart-okabe-1: #E69F00;
+  --chart-okabe-2: #56B4E9;
+  --chart-okabe-3: #009E73;
+  --chart-okabe-4: #F0E442;
+  --chart-okabe-5: #0072B2;
+  --chart-okabe-6: #D55E00;
+  --chart-okabe-7: #CC79A7;
+  --chart-okabe-8: #999999;
+  
+  /* G) Spacing & Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  
+  /* H) Typography */
+  --font-size: 16px;
+  --text-display: 32px;
+  --text-headline: 24px;
+  --text-title: 20px;
+  --text-base: 16px;
+  --text-meta: 14px;
+  --text-micro: 12px;
+  
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  
+  /* Legacy compatibility */
+  --background: #0B0D12;
+  --foreground: rgba(255, 255, 255, 0.92);
+  --card: #1B2232;
+  --card-foreground: rgba(255, 255, 255, 0.92);
+  --border: rgba(255, 255, 255, 0.12);
+  --ring: #A7E9EF;
+}
+
+@theme inline {
+  /* Surface tokens */
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-overlay-scrim: var(--overlay-scrim);
+  
+  /* Text tokens */
+  --color-text-high: var(--text-high);
+  --color-text-med: var(--text-med);
+  --color-text-subtle: var(--text-subtle);
+  
+  /* Brand tokens */
+  --color-brand-cyan: var(--brand-cyan);
+  --color-brand-violet: var(--brand-violet);
+  --color-accent-info: var(--accent-info);
+  --color-accent-success: var(--accent-success);
+  --color-accent-warning: var(--accent-warning);
+  --color-accent-danger: var(--accent-danger);
+  
+  /* Stroke tokens */
+  --color-stroke-low: var(--stroke-low);
+  --color-stroke-med: var(--stroke-med);
+  --color-stroke-high: var(--stroke-high);
+  --color-focus-ring: var(--focus-ring);
+  
+  /* Glass tokens */
+  --color-glass-bg: var(--glass-bg);
+  --color-glass-stroke: var(--glass-stroke);
+  
+  /* Chart tokens */
+  --color-chart-1: var(--chart-okabe-1);
+  --color-chart-2: var(--chart-okabe-2);
+  --color-chart-3: var(--chart-okabe-3);
+  --color-chart-4: var(--chart-okabe-4);
+  --color-chart-5: var(--chart-okabe-5);
+  --color-chart-6: var(--chart-okabe-6);
+  --color-chart-7: var(--chart-okabe-7);
+  --color-chart-8: var(--chart-okabe-8);
+  
+  /* Radius tokens */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  
+  /* Legacy */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-surface-0 text-text-high;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  }
+}
+
+/**
+ * Base typography
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-size: var(--text-display);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+
+    h2 {
+      font-size: var(--text-headline);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.3;
+      letter-spacing: -0.005em;
+    }
+
+    h3 {
+      font-size: var(--text-title);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.3;
+    }
+
+    h4 {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    p {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+
+    label {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    button {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    input {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--stroke-med);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--stroke-high);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
