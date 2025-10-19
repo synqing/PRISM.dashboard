@@ -154,6 +154,10 @@ pnpm dev:web        # http://localhost:3000
 
 Build the CLI once (`pnpm --filter @prism/cli build`) if you want local binaries (see Local API & CLI below). Use ⌘/Ctrl + K in the web app to open the command palette; toggle “Glass Effects” in the left rail to compare overlay variants.
 
+Web → API configuration
+- Set `VITE_API_BASE` in a Vite env file (e.g., `apps/web/.env`) or your shell to point the UI at a different API origin.
+- Example: `VITE_API_BASE=http://localhost:3333` (default if unset).
+
 ## Build & Deploy
 
 ```bash

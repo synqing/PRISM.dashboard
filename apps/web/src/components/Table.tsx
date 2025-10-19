@@ -1,7 +1,9 @@
 import { ChevronDown, X, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { listIssues } from '../lib/api';
+import { TableFilters, type TableFiltersValue } from './TableFilters';
 
-const tableData = [
+const fallbackData = [
   { id: 'PRISM-312', title: 'Add keyboard shortcuts for board navigation', category: 'Accessibility', priority: 'medium', status: 'Backlog', assignee: 'AK', labels: ['a11y', 'ux'], updated: '2 hours ago' },
   { id: 'PRISM-289', title: 'Design empty state for new users', category: 'Onboarding', priority: 'high', status: 'To Do', assignee: 'SL', labels: ['design', 'ux'], updated: '4 hours ago' },
   { id: 'PRISM-247', title: 'Glass effect performance regression', category: 'Performance', priority: 'critical', status: 'In Progress', assignee: 'JD', labels: ['bug', 'perf'], updated: '1 hour ago' },
@@ -12,10 +14,92 @@ const tableData = [
   { id: 'PRISM-267', title: 'Implement skeleton loading for table', category: 'Performance', priority: 'high', status: 'Review', assignee: 'JD', labels: ['perf', 'ux'], updated: '2 days ago' },
 ];
 
+type Row = { id: string; title: string; category: string; priority: string; status: string; assignee: string; labels: string[]; updated: string };
+
 export default function Table() {
   const [density, setDensity] = useState<'compact' | 'comfortable'>('comfortable');
   const [filters, setFilters] = useState<{ [key: string]: string }>({});
   const [focusedRow, setFocusedRow] = useState<number | null>(null);
+  const [rows, setRows] = useState<Row[]>(fallbackData as Row[]);
+  const [loaded, setLoaded] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [total, setTotal] = useState<number | undefined>(undefined);
+  const [filters, setFilters] = useState<TableFiltersValue>({});
+  const pageSize = 100;
+  const filterSig = useMemo(()=>JSON.stringify(filters), [filters]);
+  const first = useRef(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const params: any = { limit: pageSize };
+        if (filters.q) params.q = filters.q;
+        if (filters.assignee) params.assignee = filters.assignee;
+        if (filters.status) params.status = filters.status.split(',').map((s:string)=>s.trim()).filter(Boolean);
+        if (filters.category) params.category = filters.category.split(',').map((s:string)=>s.trim()).filter(Boolean);
+        if (filters.labels) params.labels = filters.labels.split(',').map((s:string)=>s.trim()).filter(Boolean);
+        const res = await listIssues(params);
+        if (cancelled) return;
+        const mapped: Row[] = res.items.map((i: any) => ({
+          id: i.key,
+          title: i.title,
+          category: i.category ?? "",
+          priority: (i.priority || "P1").toLowerCase(),
+          status: i.status,
+          assignee: (i.assignee || "").slice(0, 2).toUpperCase(),
+          labels: Array.isArray(i.labels) ? i.labels : [],
+          updated: i.updated_at || "",
+        }));
+        setRows(mapped);
+        setNextCursor(res.nextCursor ?? null);
+        setTotal(res.total);
+      } catch (_e) {
+        // fall back to in-memory data
+        setRows(fallbackData as Row[]);
+        setNextCursor(null);
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [filterSig]);
+
+  const loadMore = async () => {
+    if (!nextCursor) return;
+    setLoadingMore(true);
+    try {
+      const params: any = { limit: pageSize, cursor: nextCursor };
+      if (filters.q) params.q = filters.q;
+      if (filters.assignee) params.assignee = filters.assignee;
+      if (filters.status) params.status = filters.status.split(',').map((s:string)=>s.trim()).filter(Boolean);
+      if (filters.category) params.category = filters.category.split(',').map((s:string)=>s.trim()).filter(Boolean);
+      if (filters.labels) params.labels = filters.labels.split(',').map((s:string)=>s.trim()).filter(Boolean);
+      const res = await listIssues(params);
+      const mapped: Row[] = res.items.map((i: any) => ({
+        id: i.key,
+        title: i.title,
+        category: i.category ?? "",
+        priority: (i.priority || "P1").toLowerCase(),
+        status: i.status,
+        assignee: (i.assignee || "").slice(0, 2).toUpperCase(),
+        labels: Array.isArray(i.labels) ? i.labels : [],
+        updated: i.updated_at || "",
+      }));
+      // de-dup by id
+      const existing = new Set(rows.map((r) => r.id));
+      setRows([...rows, ...mapped.filter((r) => !existing.has(r.id))]);
+      setNextCursor(res.nextCursor ?? null);
+      setTotal(res.total ?? total);
+    } catch (_e) {
+      // swallow; keep existing
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const rowPadding = density === 'compact' ? 'py-2' : 'py-4';
 
@@ -95,6 +179,14 @@ export default function Table() {
         )}
       </div>
 
+      {/* Filters and hint */}
+      <div className="flex items-center gap-3 mb-3">
+        <TableFilters value={filters} onChange={setFilters} />
+        <div className="ml-auto" style={{ color: 'var(--text-med)', fontSize: 'var(--text-meta)' }}>
+          {total != null ? `Showing ${rows.length}${nextCursor ? '+' : ''} of ${total}` : `Showing ${rows.length}`}
+        </div>
+      </div>
+
       {/* Table */}
       <div className="flex-1 overflow-auto px-6">
         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--stroke-low)' }}>
@@ -137,7 +229,7 @@ export default function Table() {
               </tr>
             </thead>
             <tbody>
-              {tableData.map((row, index) => (
+              {(rows).map((row, index) => (
                 <tr
                   key={row.id}
                   className={`cursor-pointer transition-colors ${rowPadding}`}
@@ -212,6 +304,23 @@ export default function Table() {
             </tbody>
           </table>
         </div>
+        {nextCursor && (
+          <div className="flex justify-center py-4">
+            <button
+              onClick={loadMore}
+              className="px-4 py-2 rounded-lg"
+              style={{
+                background: 'var(--surface-2)',
+                border: '1px solid var(--stroke-high)',
+                color: 'var(--text-high)',
+                fontSize: 'var(--text-meta)'
+              }}
+              disabled={loadingMore}
+            >
+              {loadingMore ? 'Loading…' : 'Load more'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
