@@ -2,13 +2,16 @@ import { useBoard } from "../hooks/useBoard";
 import { STATUS_META } from "../config/board";
 import { NEXT_STATES, type Status } from "../config/workflow";
 import { useState } from "react";
+import { BoardFilters, type BoardFiltersValue } from "./BoardFilters";
+import { useToast } from "./Toast";
 
 function cls(...a: (string | false | undefined)[]) {
   return a.filter(Boolean).join(" ");
 }
 
 export default function Board() {
-  const { columns, loading, error, refresh, totals, transition } = useBoard();
+  const [flt, setFlt] = useState<BoardFiltersValue>({});
+  const { columns, loading, error, refresh, totals, transition } = useBoard(flt);
 
   return (
     <div className="p-8 space-y-6 overflow-auto h-full">
@@ -20,6 +23,7 @@ export default function Board() {
           </p>
         </div>
         <div className="ml-auto flex items-center gap-3" style={{ color: 'var(--text-med)', fontSize: 'var(--text-meta)' }}>
+          <BoardFilters value={flt} onChange={setFlt} />
           <span>Total: {totals.total}</span>
           <span>•</span>
           <span>In Progress: {totals.inProgress}</span>
@@ -95,6 +99,7 @@ function BoardColumn({ status, items, wipLimit, count, breached, onTransition }:
 
 function Card({ issue, onTransition }: { issue: any; onTransition?: (i:any,to:Status)=>Promise<void> }) {
   const [menu, setMenu] = useState(false);
+  const push = useToast();
   const legal = NEXT_STATES[issue.status as Status] || [];
 
   async function handle(to: Status) {
@@ -102,8 +107,9 @@ function Card({ issue, onTransition }: { issue: any; onTransition?: (i:any,to:St
     if (!onTransition) return;
     try {
       await onTransition(issue, to);
+      push({ kind: 'success', text: `Moved ${issue.key} → ${to}` });
     } catch (e: any) {
-      alert(e?.message || 'Transition failed');
+      push({ kind: 'error', text: e?.message || 'Transition failed' });
     }
   }
 

@@ -12,7 +12,7 @@ export type BoardColumn = {
   breached: boolean;
 };
 
-export function useBoard() {
+export function useBoard(filters?: { category?: string; assignee?: string }) {
   const [columns, setColumns] = useState<BoardColumn[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -41,14 +41,19 @@ export function useBoard() {
     setLoading(true);
     setError(null);
     try {
-      const res = await listIssues({ status: [...WORKFLOW_ORDER], limit: 500 });
+      const res = await listIssues({
+        status: [...WORKFLOW_ORDER],
+        limit: 500,
+        category: filters?.category ? filters.category.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+        assignee: filters?.assignee,
+      });
       setColumns(build(res.items));
     } catch (e: any) {
       setError(e);
     } finally {
       setLoading(false);
     }
-  }, [build]);
+  }, [build, filters?.category, filters?.assignee]);
 
   useEffect(() => {
     refresh();

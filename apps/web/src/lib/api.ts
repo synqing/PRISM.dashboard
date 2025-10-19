@@ -37,7 +37,8 @@ export async function listIssues(params: ListIssuesParams = {}) {
 
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`List failed: ${res.status}`);
-  return (await res.json()) as { items: any[]; count: number; nextCursor: string | null };
+  const data = await res.json();
+  return data as { items: any[]; count: number; nextCursor: string | null; total?: number };
 }
 
 export type Issue = {

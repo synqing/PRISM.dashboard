@@ -80,7 +80,13 @@ issues.get("/", async (req, res) => {
     order by i.updated_at desc, i.id desc
     limit $${params.length + 1}
   `;
-  const rows = await query(sql, [...params, limit]);
+  // count + list in parallel
+  const countSql = `select count(*)::int as n from issue i ${whereClause}`;
+  const [countRes, listRes] = await Promise.all([
+    query<{ n: number }>(countSql, params),
+    query(sql, [...params, limit]),
+  ]);
+  const rows = listRes;
 
   let nextCursor: string | null = null;
   if (rows.rowCount === limit) {
@@ -89,7 +95,9 @@ issues.get("/", async (req, res) => {
     res.setHeader("X-Next-Cursor", nextCursor);
   }
 
-  res.json({ items: rows.rows, count: rows.rowCount, nextCursor });
+  const total = countRes.rows?.[0]?.n ?? 0;
+  res.setHeader("X-Total-Count", String(total));
+  res.json({ items: rows.rows, count: rows.rowCount, nextCursor, total });
 });
 
 issues.post("/", authGuard, async (req, res) => {
