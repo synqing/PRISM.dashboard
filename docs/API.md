@@ -61,3 +61,17 @@ Automations
 Errors
 - Standard JSON: { error: { code, message, details? } }
 - Use 4xx for client mistakes (invalid transition, unknown key); 5xx for server failures.
+# PRISM.dashboard — API Guide (v1)
+List Issues
+- GET /api/issues
+  - Query params:
+    - status: CSV of statuses (e.g., To Do,In Progress)
+    - category: CSV of categories
+    - assignee: exact match
+    - labels: CSV of labels; matches any overlap
+    - q: substring match on title/details (ILIKE)
+    - limit: 1–200 (default 50)
+    - cursor: base64url(JSON{"updated_at","id"}) from previous response
+  - Sort: updated_at desc, id desc (keyset pagination)
+  - Response: { items: Issue[], count: number, nextCursor: string|null }
+  - Headers: X-Next-Cursor mirrors nextCursor when present

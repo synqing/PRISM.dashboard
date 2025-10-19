@@ -1,9 +1,96 @@
 import { Router } from "express";
+import { z } from "zod";
 import { IssueCreate, IssueUpdate, TransitionBody } from "@prism/types";
 import { query } from "../db.js";
 import { authGuard } from "../util.js";
+import { decodeCursor, encodeCursor } from "../cursor.js";
 
 export const issues = Router();
+
+/* LIST with filters + cursor pagination */
+const ListQuery = z.object({
+  status: z.string().optional(),
+  category: z.string().optional(),
+  assignee: z.string().optional(),
+  q: z.string().optional(),
+  labels: z.string().optional(),
+  limit: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 50))
+    .pipe(z.number().min(1).max(200)),
+  cursor: z.string().optional(),
+});
+
+issues.get("/", async (req, res) => {
+  const parsed = ListQuery.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+
+  const { status, category, assignee, q, labels, limit, cursor } = parsed.data;
+
+  const where: string[] = [];
+  const params: any[] = [];
+
+  const csv = (v?: string) =>
+    v?.split(",").map((s) => s.trim()).filter(Boolean) ?? null;
+
+  const statuses = csv(status);
+  if (statuses && statuses.length) {
+    where.push(`i.status = any($${params.length + 1})`);
+    params.push(statuses);
+  }
+
+  const categories = csv(category);
+  if (categories && categories.length) {
+    where.push(`i.category = any($${params.length + 1})`);
+    params.push(categories);
+  }
+
+  if (assignee) {
+    where.push(`i.assignee = $${params.length + 1}`);
+    params.push(assignee);
+  }
+
+  const labelList = csv(labels);
+  if (labelList && labelList.length) {
+    where.push(`i.labels && $${params.length + 1}::text[]`);
+    params.push(labelList);
+  }
+
+  if (q && q.trim()) {
+    where.push(`(i.title ilike $${params.length + 1} or i.details ilike $${params.length + 2})`);
+    params.push(`%${q}%`, `%${q}%`);
+  }
+
+  const cur = decodeCursor(cursor);
+  if (cur) {
+    where.push(`(i.updated_at, i.id) < ($${params.length + 1}::timestamptz, $${params.length + 2}::uuid)`);
+    params.push(cur.updated_at, cur.id);
+  }
+
+  const whereClause = where.length ? `where ${where.join(" and ")}` : "";
+
+  const sql = `
+    select i.*
+    from issue i
+    ${whereClause}
+    order by i.updated_at desc, i.id desc
+    limit $${params.length + 1}
+  `;
+  const rows = await query(sql, [...params, limit]);
+
+  let nextCursor: string | null = null;
+  if (rows.rowCount === limit) {
+    const last: any = rows.rows[rows.rowCount - 1];
+    nextCursor = encodeCursor({ updated_at: last.updated_at, id: last.id });
+    res.setHeader("X-Next-Cursor", nextCursor);
+  }
+
+  res.json({ items: rows.rows, count: rows.rowCount, nextCursor });
+});
 
 issues.post("/", authGuard, async (req, res) => {
   const parsed = IssueCreate.safeParse(req.body);

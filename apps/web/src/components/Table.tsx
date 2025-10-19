@@ -1,6 +1,6 @@
 import { ChevronDown, X, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { searchIssues } from '../lib/api';
+import { listIssues } from '../lib/api';
 
 const fallbackData = [
   { id: 'PRISM-312', title: 'Add keyboard shortcuts for board navigation', category: 'Accessibility', priority: 'medium', status: 'Backlog', assignee: 'AK', labels: ['a11y', 'ux'], updated: '2 hours ago' },
@@ -21,12 +21,14 @@ export default function Table() {
   const [focusedRow, setFocusedRow] = useState<number | null>(null);
   const [rows, setRows] = useState<Row[]>(fallbackData as Row[]);
   const [loaded, setLoaded] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await searchIssues("");
+        const res = await listIssues({ limit: 100 });
         if (cancelled) return;
         const mapped: Row[] = res.items.map((i: any) => ({
           id: i.key,
@@ -39,9 +41,11 @@ export default function Table() {
           updated: i.updated_at || "",
         }));
         setRows(mapped);
+        setNextCursor(res.nextCursor ?? null);
       } catch (_e) {
         // fall back to in-memory data
         setRows(fallbackData as Row[]);
+        setNextCursor(null);
       } finally {
         if (!cancelled) setLoaded(true);
       }
@@ -50,6 +54,32 @@ export default function Table() {
       cancelled = true;
     };
   }, []);
+
+  const loadMore = async () => {
+    if (!nextCursor) return;
+    setLoadingMore(true);
+    try {
+      const res = await listIssues({ limit: 100, cursor: nextCursor });
+      const mapped: Row[] = res.items.map((i: any) => ({
+        id: i.key,
+        title: i.title,
+        category: i.category ?? "",
+        priority: (i.priority || "P1").toLowerCase(),
+        status: i.status,
+        assignee: (i.assignee || "").slice(0, 2).toUpperCase(),
+        labels: Array.isArray(i.labels) ? i.labels : [],
+        updated: i.updated_at || "",
+      }));
+      // de-dup by id
+      const existing = new Set(rows.map((r) => r.id));
+      setRows([...rows, ...mapped.filter((r) => !existing.has(r.id))]);
+      setNextCursor(res.nextCursor ?? null);
+    } catch (_e) {
+      // swallow; keep existing
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const rowPadding = density === 'compact' ? 'py-2' : 'py-4';
 
@@ -246,6 +276,23 @@ export default function Table() {
             </tbody>
           </table>
         </div>
+        {nextCursor && (
+          <div className="flex justify-center py-4">
+            <button
+              onClick={loadMore}
+              className="px-4 py-2 rounded-lg"
+              style={{
+                background: 'var(--surface-2)',
+                border: '1px solid var(--stroke-high)',
+                color: 'var(--text-high)',
+                fontSize: 'var(--text-meta)'
+              }}
+              disabled={loadingMore}
+            >
+              {loadingMore ? 'Loading…' : 'Load more'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
