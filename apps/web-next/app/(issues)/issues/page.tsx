@@ -1,4 +1,5 @@
 import "server-only";
+import IssuesClient from "./issuesClient";
 
 type Issue = {
   id:string; key:string; title:string; status:string; category:string;
@@ -23,39 +24,5 @@ async function fetchIssues(searchParams: Record<string,string|undefined>) {
 
 export default async function IssuesPage({ searchParams }:{ searchParams:Record<string,string|undefined> }) {
   const { items, total } = await fetchIssues(searchParams);
-  return (
-    <main className="p-6 space-y-4">
-      <header className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold">Issues</h1>
-        <div className="ml-auto text-sm" style={{ color: '#9ca3af' }}>
-          {total != null ? `Showing ${items.length} of ${total}` : `Showing ${items.length}`}
-        </div>
-      </header>
-      <table className="w-full text-sm">
-        <thead style={{ color: '#9ca3af' }}>
-          <tr>
-            <th className="text-left p-2">Key</th>
-            <th className="text-left p-2">Title</th>
-            <th className="text-left p-2">Status</th>
-            <th className="text-left p-2">Category</th>
-            <th className="text-left p-2">Assignee</th>
-            <th className="text-left p-2">Updated</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map(i=> (
-            <tr key={i.id} className="border-b" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-              <td className="p-2" style={{ color: '#22d3ee', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas' }}>{i.key}</td>
-              <td className="p-2">{i.title}</td>
-              <td className="p-2">{i.status}</td>
-              <td className="p-2">{i.category}</td>
-              <td className="p-2">{i.assignee ?? '—'}</td>
-              <td className="p-2">{new Date(i.updated_at).toLocaleString()}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </main>
-  );
+  return <IssuesClient initialItems={items} total={total} />;
 }
-
