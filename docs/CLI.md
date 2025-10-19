@@ -1,14 +1,19 @@
 # PRISM.dashboard — CLI (v1) Reference
 
-Install
+Install (local dev)
 ```bash
-npm i -g prism-cli # placeholder package name
+pnpm --filter @prism/cli build
+cd apps/cli && npm link
 ```
 
 Usage
 ```bash
 prism --help
 ```
+
+Environment
+- `PRISM_API` (default `http://localhost:3333`)
+- `PRISM_TOKEN` (bearer token; aligns with `PRISM_API_TOKEN` in API .env)
 
 Commands
 ```bash
@@ -36,4 +41,3 @@ Environment
 
 Exit codes
 - 0 success, non‑zero on errors (validation, network, server, MCP).
-

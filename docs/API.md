@@ -28,8 +28,12 @@ Issues
   - response: attachment
 
 - POST /api/issues/{key}/transition
-  - body: { status }
+  - body: { to: "In Progress" }
   - response: updated issue (server enforces workflow)
+
+- GET /api/issues/next/by-category/{name}
+  - query: category name (path param)
+  - response: next "To Do" issue whose dependencies are all `Done`
 
 Search
 - POST /api/search
@@ -57,4 +61,3 @@ Automations
 Errors
 - Standard JSON: { error: { code, message, details? } }
 - Use 4xx for client mistakes (invalid transition, unknown key); 5xx for server failures.
-

@@ -25,6 +25,7 @@ High‑fidelity React 18 dashboard implementing the PRISM design system with Tai
   - Setup
   - Build & Deploy
   - Project Structure
+  - Local API & CLI
   - Internal Brief Overview
   - Domain Glossary
   - Coding Standards
@@ -33,6 +34,7 @@ High‑fidelity React 18 dashboard implementing the PRISM design system with Tai
   - Performance & Bundling
   - Accessibility
   - Browser Support
+  - Smoke Tests
   - Troubleshooting
   - Onwards Research
   - Roadmap
@@ -60,26 +62,26 @@ Assumptions and scope:
 
 - React 18.3 + TypeScript
 - Vite 6 with `@vitejs/plugin-react-swc` (SWC transforms) for fast HMR and esbuild pre-bundling
-- Tailwind CSS v4 reset/utilities (`src/index.css`) and PRISM tokens (`src/styles/globals.css`)
-- Radix UI headless primitives wrapped under `src/components/ui/*`
+- Tailwind CSS v4 reset/utilities (`apps/web/src/index.css`) and PRISM tokens (`apps/web/src/styles/globals.css`)
+- Radix UI headless primitives wrapped under `apps/web/src/components/ui/*`
 - Recharts (2.x) for charting; Embla Carousel (8.x) for galleries
 - `lucide-react` for icons; `cmdk` for the command palette
 - Node 18+ recommended (Node 20 LTS supported)
 
 ## Architecture
 
-- App Shell (`src/App.tsx`):
+- App Shell (`apps/web/src/App.tsx`):
   - Layout: two‑pane with left navigation and content area.
   - View switching: union type `View` controls which feature module renders.
   - UI toggles: glass effects toggle, palette visibility (⌘/Ctrl+K).
   - No router or global store; keeps demo deterministic and lightweight.
-- Feature Modules (`src/components/*.tsx`):
+- Feature Modules (`apps/web/src/components/*.tsx`):
   - Each module owns layout, demo data, and interactions (e.g., `Overview.tsx` defines KPI arrays and chart configs).
   - No cross‑module coupling; data is colocated to encourage modularization.
-- UI Primitives (`src/components/ui/*`):
+- UI Primitives (`apps/web/src/components/ui/*`):
   - Thin wrappers around Radix primitives unify tokens, classNames, and accessible defaults.
   - Utilities: `tailwind-merge` for class de‑duplication; `class-variance-authority` for variant APIs.
-- Styling (`src/index.css`, `src/styles/globals.css`):
+- Styling (`apps/web/src/index.css`, `apps/web/src/styles/globals.css`):
   - Tailwind v4 reset and utilities; design tokens exported as CSS variables and mapped into Tailwind via `@theme inline`.
   - Scrollbars, reduced‑motion, and global typography live in `globals.css`.
 - Build & Dev Config (`vite.config.ts`):
@@ -96,7 +98,7 @@ Assumptions and scope:
 
 ## Theming Strategy
 
-Design tokens in `src/styles/globals.css` serve as the single source of truth and are consumed both via Tailwind utilities and directly as CSS variables.
+Design tokens in `apps/web/src/styles/globals.css` serve as the single source of truth and are consumed both via Tailwind utilities and directly as CSS variables.
 
 Core token groups:
 - Surfaces: `--surface-0 … --surface-3` + `--overlay-scrim`
@@ -121,7 +123,7 @@ Example (excerpt):
 
 ## Component Catalog
 
-Radix‑based primitives live under `src/components/ui/` and are themed with PRISM classes/variables.
+Radix‑based primitives live under `apps/web/src/components/ui/` and are themed with PRISM classes/variables.
 
 - Overlay: `dialog`, `drawer`, `sheet`, `tooltip`, `popover`, `hover-card`, `alert-dialog`
 - Navigation: `navigation-menu`, `menubar`, `sidebar`, `breadcrumb`, `tabs`
@@ -139,86 +141,106 @@ Radix‑based primitives live under `src/components/ui/` and are themed with PRI
 
 Requirements:
 - Node 18+ (Node 20 LTS supported)
-- npm 9+
+- pnpm 9+
 
-Commands:
+Commands (run from repo root):
 ```bash
-npm install
-npm run dev
+pnpm install
+cp apps/api/.env.example apps/api/.env
+pnpm migrate && pnpm seed
+pnpm dev:api        # http://localhost:3333
+pnpm dev:web        # http://localhost:3000
 ```
 
-The dev server opens automatically on `http://localhost:3000`. Use ⌘/Ctrl + K for the command palette. Toggle “Glass Effects” in the left rail to compare glass vs. matte overlays.
+Build the CLI once (`pnpm --filter @prism/cli build`) if you want local binaries (see Local API & CLI below). Use ⌘/Ctrl + K in the web app to open the command palette; toggle “Glass Effects” in the left rail to compare overlay variants.
 
 ## Build & Deploy
 
 ```bash
-npm run build
+pnpm --filter @prism/web build
 ```
 
-- Output directory: `build/` (configured in `vite.config.ts`).
+- Output directory: `apps/web/build/` (configured in `apps/web/vite.config.ts`).
 - Target: modern evergreen browsers (`esnext`).
 - Hosting: Any static host/CDN (Netlify, Vercel, S3/CloudFront, Cloudflare Pages). Configure base path if served under a subpath.
 
-  ## Project Structure
+## Project Structure
 
 ```
 .
-├── index.html
-├── package.json
-├── src
-│   ├── App.tsx
-│   ├── main.tsx
-│   ├── index.css
-│   ├── styles/
-│   │   └── globals.css
-│   ├── components/
-│   │   ├── *.tsx                # Feature views
-│   │   ├── figma/               # Fallback helpers
-│   │   └── ui/                  # Radix wrappers + utils
-│   └── guidelines/
-  └── vite.config.ts
-  ```
-
-  ## Internal Brief Overview
-
-  This repository includes a comprehensive internal product/architecture brief at `docs/BRIEF.md`. It is intended to give engineers and coding agents everything needed to plan, build, and ship the full PRISM.dashboard system beyond this UI showcase.
-
-  What the brief covers:
-  - BLUF: What PRISM.dashboard is and the role of Task Master (TM)
-  - Why: Motivation and non‑goals for v1
-  - Scope: Core features for v1 and near‑term Core+
-  - Product Principles: Source of truth, layout philosophy, glass/motion discipline, performance/a11y stance
-  - Architecture: Next.js UI+API, Supabase Postgres (+Realtime, +pgvector), MCP bridge to TM, GitHub webhooks, OpenTelemetry
-  - Data Model: SQL DDL for issues, comments, attachments, links, automations, events, documents, embeddings
-  - Workflows: PRD→Plan chain, structural edit rules (always via TM), smart‑commit linking, automations
-  - API: Essential REST routes and a JQL‑lite query model with examples
-  - MCP Tools: The exact tools invoked on TM and server launch guidance
-  - CLI: `prism` commands with common flags
-  - UI/UX Spec: Shell, Overview KPIs, Board/Table, Plan stepper, Inspector tabs, dark theme, motion, a11y, performance
-  - Developer Setup: Monorepo layout, env vars, Supabase, dev runbook
-  - Testing & Acceptance: Unit/integration/a11y/perf criteria and v1 release checklist
-  - Risks & Mitigations: Drift, webhooks, perf, security
-  - Roadmap: Phase 1 (spine), Phase 2 (fit & finish), Phase 3 (hardening)
-  - Pre‑reading & Appendices: Figma prompts, CSV templates, JQL grammar
-  - Open Questions: Status/workflow, WIP, automations, retention, brand hexes
-
-  Target architecture vs current repo:
-  - Target (brief): Next.js App Router with API routes, Supabase Postgres (+Realtime, +pgvector), TM MCP bridge, GitHub webhooks, OTel.
-  - Current (this repo): Vite + React 18 UI showcase with Tailwind v4 tokens, Radix wrappers, demo views and charts.
-  - Migration strategy is outlined in README sections (Architecture, Extension Guide, Data Integration Plan) and elaborated in `docs/BRIEF.md`.
-
-  Templates and deeper references:
-  - Environment template: `docs/ENV.example`
-  - Database schema (DDL, indexes, RLS placeholders): `supabase/schema.sql`
-  - REST API shapes and examples: `docs/API.md`
-  - JQL‑lite mini‑spec: `docs/JQL.md`
-  - Workflow details and invariants: `docs/WORKFLOWS.md`
-
-  Link: See the full brief in `docs/BRIEF.md`.
+├── apps
+│   ├── api/              # Express API service (issues, search, sync, webhooks)
+│   ├── cli/              # Commander-based CLI that talks to the API
+│   └── web/              # React UI showcase (Vite)
+├── docs/                 # README companions (brief, env, api, smoke, etc.)
+├── packages
+│   ├── types/            # Shared Zod schemas + TypeScript types
+│   └── ui/               # Reserved for shared UI primitives
+├── scripts/              # Smoke test runner(s)
+├── supabase/
+│   ├── migrations/0001_init.sql
+│   └── seeds/seed.sql
+├── package.json          # pnpm workspace root
+├── tsconfig.base.json
+└── README.md
+```
 
 Notes:
-- `src/components/ui/*` is the integration surface for Radix—extend or theme here before feature modules.
-- `src/components/figma/*` contains small helpers used to mirror Figma semantics during asset loading.
+- `apps/web` retains the design-system showcase. Migrate to Next.js App Router when ready.
+- `packages/ui` is a placeholder for shared components once the monorepo converges.
+
+## Local API & CLI
+
+- Configure environment variables (see `docs/ENV.md`).
+- Apply schema + seeds: `pnpm migrate && pnpm seed` (uses `apps/api/db/*`).
+- Run the API: `pnpm dev:api` → http://localhost:3333 (`/health`, `/api/issues/...`).
+- Build the CLI: `pnpm --filter @prism/cli build`.
+- Ad-hoc commands:
+  - `PRISM_API=http://localhost:3333 PRISM_TOKEN=devtoken123 node apps/cli/dist/index.js issue:show Helpers-001`
+  - `prism issue:create ...` (after `npm link` inside `apps/cli` if you want the binary on PATH).
+- Run the smoke script (`pnpm smoke`) or copy/paste commands from `docs/SMOKE.md` to validate wiring end-to-end.
+
+## Internal Brief Overview
+
+This repository includes a comprehensive internal product/architecture brief at `docs/BRIEF.md`. It is intended to give engineers and coding agents everything needed to plan, build, and ship the full PRISM.dashboard system beyond this UI showcase.
+
+What the brief covers:
+- BLUF: What PRISM.dashboard is and the role of Task Master (TM)
+- Why: Motivation and non‑goals for v1
+- Scope: Core features for v1 and near‑term Core+
+- Product Principles: Source of truth, layout philosophy, glass/motion discipline, performance/a11y stance
+- Architecture: Next.js UI+API, Supabase Postgres (+Realtime, +pgvector), MCP bridge to TM, GitHub webhooks, OpenTelemetry
+- Data Model: SQL DDL for issues, comments, attachments, links, automations, events, documents, embeddings
+- Workflows: PRD→Plan chain, structural edit rules (always via TM), smart‑commit linking, automations
+- API: Essential REST routes and a JQL‑lite query model with examples
+- MCP Tools: The exact tools invoked on TM and server launch guidance
+- CLI: `prism` commands with common flags
+- UI/UX Spec: Shell, Overview KPIs, Board/Table, Plan stepper, Inspector tabs, dark theme, motion, a11y, performance
+- Developer Setup: Monorepo layout, env vars, Supabase, dev runbook
+- Testing & Acceptance: Unit/integration/a11y/perf criteria and v1 release checklist
+- Risks & Mitigations: Drift, webhooks, perf, security
+- Roadmap: Phase 1 (spine), Phase 2 (fit & finish), Phase 3 (hardening)
+- Pre‑reading & Appendices: Figma prompts, CSV templates, JQL grammar
+- Open Questions: Status/workflow, WIP, automations, retention, brand hexes
+
+Target architecture vs current repo:
+- Target (brief): Next.js App Router with API routes, Supabase Postgres (+Realtime, +pgvector), TM MCP bridge, GitHub webhooks, OTel.
+- Current (this repo): Vite + React 18 UI showcase with Tailwind v4 tokens, Radix wrappers, demo views and charts.
+- Migration strategy is outlined in README sections (Architecture, Extension Guide, Data Integration Plan) and elaborated in `docs/BRIEF.md`.
+
+Templates and deeper references:
+- Environment template: `docs/ENV.example`
+- Environment walkthrough: `docs/ENV.md`
+- Database schema (DDL, indexes, workflow trigger): `supabase/migrations/0001_init.sql`
+- REST API shapes and examples: `docs/API.md`
+- JQL‑lite mini‑spec: `docs/JQL.md`
+- Workflow details and invariants: `docs/WORKFLOWS.md`
+
+Link: See the full brief in `docs/BRIEF.md`.
+
+Notes:
+- `apps/web/src/components/ui/*` is the integration surface for Radix—extend or theme here before feature modules.
+- `apps/web/src/components/figma/*` contains small helpers used to mirror Figma semantics during asset loading.
 
 ## Domain Glossary
 
@@ -229,7 +251,7 @@ Notes:
 - WIP Breach: Number of active items above WIP limit; signals process contention.
 - Error Budget: Remaining allowable error rate before SLO breach.
 
-The demo values live in `Overview.tsx` for consistent UI behavior.
+The demo values live in `apps/web/src/components/Overview.tsx` for consistent UI behavior.
 
 ## Coding Standards
 
@@ -282,11 +304,16 @@ Token changes:
 - Target: evergreen browsers (Chromium, Firefox, Safari) with ESNext features.
 - For legacy support later, reduce `build.target` and add polyfills.
 
+## Smoke Tests
+
+- Quick check: `pnpm smoke` (runs `scripts/smoke.cjs`; expects API running on http://localhost:3333 and CLI build output).
+- Manual commands and examples live in `docs/SMOKE.md`.
+
 ## Troubleshooting
 
-- Blank page after start: ensure Node ≥ 18 and a clean install (`rm -rf node_modules && npm i`).
-- Port conflict: dev server runs on `3000`; change `server.port` in `vite.config.ts` if needed.
-- Styles unthemed: confirm `src/styles/globals.css` is imported and variables resolve; check class collisions.
+- Blank page after start: ensure Node ≥ 18 and a clean install (`rm -rf node_modules && pnpm install`).
+- Port conflict: web dev server runs on `3000`; change `server.port` in `apps/web/vite.config.ts` if needed.
+- Styles unthemed: confirm `apps/web/src/styles/globals.css` is imported and variables resolve; check class collisions.
 
 ## Onwards Research
 

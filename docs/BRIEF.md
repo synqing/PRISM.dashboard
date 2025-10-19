@@ -73,7 +73,7 @@ Components: Next.js App Router UI + API routes (Vercel AI SDK), Supabase Postgre
 SQL DDL for `space`, `issue`, `comment`, `attachment`, `link`, `automation_rule`, `event_log`, optional `document` + `embedding` (pgvector). Keys: `CategoryName-###`.
 
 Templates
-- Full schema with indexes and optional FTS/pgvector: `supabase/schema.sql`
+- Full schema with indexes and optional FTS/pgvector: `supabase/migrations/0001_init.sql`
 - Example environment file: `docs/ENV.example`
 
 ---
@@ -117,7 +117,15 @@ Note on visualization
 
 ## 11) Developer setup (from zero)
 
-Prereqs, monorepo layout (apps/web, apps/cli, packages/*, supabase), environment variables, dev runbook (Supabase start, Next.js dev, TM server, seeding).
+Prereqs, monorepo layout (apps/web, apps/cli, packages/*, supabase), environment variables, dev runbook (Supabase start, Next.js/Express dev, TM server, seeding).
+
+Quick start (local):
+1. `pnpm install`
+2. `cp apps/api/.env.example apps/api/.env`
+3. `pnpm migrate && pnpm seed`
+4. `pnpm dev:api` (http://localhost:3333)
+5. `pnpm dev:web` (http://localhost:3000)
+6. `pnpm --filter @prism/cli build` then run CLI commands (`apps/cli/dist/index.js ...` or `npm link` → `prism ...`).
 
 Environment templates
 - Copy `docs/ENV.example` into each app/package that needs it and tune per environment. Document required variables near the consuming code.
