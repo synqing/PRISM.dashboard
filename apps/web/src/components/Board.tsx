@@ -1,208 +1,113 @@
-import { MoreHorizontal, AlertTriangle } from 'lucide-react';
+import { useBoard } from "../hooks/useBoard";
+import { STATUS_META } from "../config/board";
 
-const columns = [
-  { id: 'backlog', title: 'Backlog', wipLimit: null, count: 12 },
-  { id: 'todo', title: 'To Do', wipLimit: 5, count: 4 },
-  { id: 'in-progress', title: 'In Progress', wipLimit: 3, count: 4 },
-  { id: 'review', title: 'Review', wipLimit: 4, count: 3 },
-  { id: 'done', title: 'Done', wipLimit: null, count: 28 }
-];
-
-const cards = {
-  backlog: [
-    { id: 'PRISM-312', title: 'Add keyboard shortcuts for board navigation', category: 'Accessibility', priority: 'medium', status: 'backlog', assignee: 'AK' },
-    { id: 'PRISM-315', title: 'Implement auto-save for draft issues', category: 'Helpers', priority: 'low', status: 'backlog', assignee: null }
-  ],
-  todo: [
-    { id: 'PRISM-289', title: 'Design empty state for new users', category: 'Onboarding', priority: 'high', status: 'todo', assignee: 'SL', hasPR: false },
-    { id: 'PRISM-291', title: 'Create onboarding checklist component', category: 'Onboarding', priority: 'high', status: 'todo', assignee: 'MK', hasPR: false },
-    { id: 'PRISM-294', title: 'Add tooltips to all icon-only buttons', category: 'Accessibility', priority: 'medium', status: 'todo', assignee: 'AK', hasPR: false }
-  ],
-  'in-progress': [
-    { id: 'PRISM-247', title: 'Glass effect performance regression', category: 'Performance', priority: 'critical', status: 'in-progress', assignee: 'JD', hasPR: true },
-    { id: 'PRISM-301', title: 'Motion animation stuck in reduced-motion mode', category: 'MotionVisuals', priority: 'high', status: 'in-progress', assignee: 'TR', hasPR: true },
-    { id: 'PRISM-189', title: 'Focus ring missing on custom dropdown', category: 'Accessibility', priority: 'high', status: 'in-progress', assignee: 'AK', hasPR: false },
-    { id: 'PRISM-278', title: 'Add telemetry for WIP breach events', category: 'MetricsAndTelemetry', priority: 'medium', status: 'in-progress', assignee: 'LC', hasPR: true }
-  ],
-  review: [
-    { id: 'PRISM-256', title: 'Update error recovery documentation', category: 'DocumentationAndSpec', priority: 'medium', status: 'review', assignee: 'RM', hasPR: true },
-    { id: 'PRISM-234', title: 'Standardize button taxonomy across app', category: 'TaxonomyAndNaming', priority: 'low', status: 'review', assignee: 'SL', hasPR: true },
-    { id: 'PRISM-267', title: 'Implement skeleton loading for table', category: 'Performance', priority: 'high', status: 'review', assignee: 'JD', hasPR: true }
-  ],
-  done: []
-};
+function cls(...a: (string | false | undefined)[]) {
+  return a.filter(Boolean).join(" ");
+}
 
 export default function Board() {
-  return (
-    <div className="p-6 overflow-auto h-full">
-      <div className="mb-6">
-        <h2 style={{ color: 'var(--text-high)' }}>Board</h2>
-        <p style={{ color: 'var(--text-med)', fontSize: 'var(--text-meta)', marginTop: '4px' }}>
-          Kanban flow with WIP limits
-        </p>
-      </div>
-
-      <div className="flex gap-4 pb-6" style={{ minWidth: 'fit-content' }}>
-        {columns.map((column) => (
-          <BoardColumn 
-            key={column.id} 
-            column={column}
-            cards={cards[column.id as keyof typeof cards] || []}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function BoardColumn({ column, cards }: { column: any; cards: any[] }) {
-  const isOverLimit = column.wipLimit && cards.length > column.wipLimit;
-  
-  return (
-    <div className="flex-shrink-0" style={{ width: '320px' }}>
-      {/* Header */}
-      <div 
-        className="p-4 rounded-t-xl flex items-center justify-between"
-        style={{ 
-          background: 'var(--surface-1)',
-          borderBottom: '1px solid var(--stroke-low)'
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <h3 style={{ fontSize: 'var(--text-base)', color: 'var(--text-high)' }}>
-            {column.title}
-          </h3>
-          <span 
-            className="px-2 py-0.5 rounded"
-            style={{ 
-              fontSize: 'var(--text-micro)',
-              color: 'var(--text-subtle)',
-              background: 'var(--surface-2)'
-            }}
-          >
-            {cards.length}
-          </span>
-        </div>
-        {column.wipLimit && (
-          <div 
-            className="px-2 py-0.5 rounded flex items-center gap-1"
-            style={{ 
-              fontSize: 'var(--text-micro)',
-              background: isOverLimit ? 'rgba(239, 68, 68, 0.1)' : 'var(--surface-2)',
-              border: `1px solid ${isOverLimit ? 'var(--accent-warning)' : 'var(--stroke-high)'}`,
-              color: isOverLimit ? 'var(--accent-warning)' : 'var(--text-med)'
-            }}
-          >
-            {isOverLimit && <AlertTriangle size={10} />}
-            WIP {cards.length}/{column.wipLimit}
-          </div>
-        )}
-      </div>
-
-      {/* Cards */}
-      <div 
-        className="p-3 space-y-3 rounded-b-xl"
-        style={{ 
-          background: 'var(--surface-1)',
-          minHeight: '400px'
-        }}
-      >
-        {cards.map((card) => (
-          <BoardCard key={card.id} card={card} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function BoardCard({ card }: { card: any }) {
-  const priorityColors = {
-    critical: 'var(--accent-danger)',
-    high: 'var(--accent-warning)',
-    medium: 'var(--accent-info)',
-    low: 'var(--text-subtle)'
-  };
+  const { columns, loading, error, refresh, totals } = useBoard();
 
   return (
-    <div 
-      className="p-4 rounded-xl cursor-pointer transition-all duration-200 hover:translate-y-[-2px] group"
-      style={{ 
-        background: 'var(--surface-2)',
-        border: '1px solid var(--stroke-med)',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
-      }}
-    >
-      {/* ID & Menu */}
-      <div className="flex items-center justify-between mb-3">
-        <span style={{ fontSize: 'var(--text-micro)', color: 'var(--text-subtle)' }}>
-          {card.id}
-        </span>
-        <button 
-          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-surface-3"
-          style={{ color: 'var(--text-subtle)' }}
-        >
-          <MoreHorizontal size={16} />
-        </button>
+    <div className="p-8 space-y-6 overflow-auto h-full">
+      <div className="flex items-center gap-3">
+        <div>
+          <h2 style={{ color: 'var(--text-high)' }}>Board</h2>
+          <p style={{ color: 'var(--text-med)', fontSize: 'var(--text-meta)', marginTop: '4px' }}>
+            Column workflow with WIP control (API‑backed)
+          </p>
+        </div>
+        <div className="ml-auto flex items-center gap-3" style={{ color: 'var(--text-med)', fontSize: 'var(--text-meta)' }}>
+          <span>Total: {totals.total}</span>
+          <span>•</span>
+          <span>In Progress: {totals.inProgress}</span>
+          <button
+            className="px-3 py-1.5 rounded border"
+            style={{ borderColor: 'var(--stroke-high)', color: 'var(--text-high)', background: 'var(--surface-2)' }}
+            onClick={() => refresh()}
+            disabled={loading}
+          >
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
-      {/* Title */}
-      <p style={{ fontSize: 'var(--text-base)', color: 'var(--text-high)', marginBottom: '12px', lineHeight: 1.4 }}>
-        {card.title}
-      </p>
-
-      {/* Chips */}
-      <div className="flex items-center gap-2 flex-wrap mb-3">
-        <div 
-          className="px-2 py-1 rounded-md"
-          style={{ 
-            fontSize: 'var(--text-micro)',
-            background: 'var(--surface-3)',
-            color: 'var(--text-med)'
-          }}
-        >
-          {card.category}
-        </div>
-        <div 
-          className="px-2 py-1 rounded-md"
-          style={{ 
-            fontSize: 'var(--text-micro)',
-            background: priorityColors[card.priority as keyof typeof priorityColors] + '20',
-            color: priorityColors[card.priority as keyof typeof priorityColors],
-            border: `1px solid ${priorityColors[card.priority as keyof typeof priorityColors]}40`
-          }}
-        >
-          {card.priority}
-        </div>
-        {card.hasPR && (
-          <div 
-            className="px-2 py-1 rounded-md"
-            style={{ 
-              fontSize: 'var(--text-micro)',
-              background: 'var(--brand-cyan)20',
-              color: 'var(--brand-cyan)',
-              border: '1px solid var(--brand-cyan)40'
-            }}
+      {error ? (
+        <div className="p-4">
+          <div className="text-red-400">Failed to load board from API.</div>
+          <button
+            className="px-3 py-1.5 rounded border"
+            style={{ borderColor: 'var(--stroke-high)', color: 'var(--text-high)', background: 'var(--surface-2)' }}
+            onClick={() => refresh()}
           >
-            PR
-          </div>
-        )}
-      </div>
-
-      {/* Assignee */}
-      {card.assignee && (
-        <div className="flex items-center gap-2">
-          <div 
-            className="w-6 h-6 rounded-full flex items-center justify-center"
-            style={{ 
-              background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-violet))',
-              fontSize: 'var(--text-micro)',
-              color: 'var(--surface-0)'
-            }}
-          >
-            {card.assignee}
-          </div>
+            Retry
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
+          {columns.map((col) => (
+            <BoardColumn key={col.status} {...col} />
+          ))}
         </div>
       )}
     </div>
+  );
+}
+
+type ColumnProps = ReturnType<typeof useBoard>["columns"][number];
+
+function BoardColumn({ status, items, wipLimit, count, breached }: ColumnProps) {
+  const meta = STATUS_META[status as keyof typeof STATUS_META];
+  return (
+    <section
+      className={cls('rounded-xl')}
+      style={{ border: '1px solid var(--stroke-low)', background: breached ? 'rgba(245, 158, 11, 0.06)' : 'var(--surface-2)' }}
+    >
+      <header className="sticky top-0 z-10 px-3 py-2 flex items-center gap-2"
+        style={{ backdropFilter: 'blur(6px)', color: 'var(--text-high)' }}
+      >
+        <h3 className="font-medium">{meta.label}</h3>
+        <div
+          className="ml-auto text-xs px-2 py-0.5 rounded-full"
+          style={{
+            border: `1px solid ${breached ? 'rgba(245, 158, 11, 0.6)' : 'var(--stroke-high)'}`,
+            color: breached ? 'rgba(245, 158, 11, 0.9)' : 'var(--text-med)'
+          }}
+        >
+          {count}{wipLimit ? ` / ${wipLimit}` : ''}
+        </div>
+      </header>
+
+      <div className="p-2 flex flex-col gap-2 min-h-[120px]">
+        {items.length === 0 ? (
+          <div className="text-xs px-2 py-8 text-center" style={{ color: 'var(--text-subtle)' }}>No items</div>
+        ) : (
+          items.map((it) => <Card key={it.id} issue={it} />)
+        )}
+      </div>
+    </section>
+  );
+}
+
+function Card({ issue }: { issue: any }) {
+  return (
+    <article
+      className="rounded-lg transition-colors"
+      style={{ border: '1px solid var(--stroke-low)', background: 'var(--surface-1)' }}
+    >
+      <div className="p-2.5">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono" style={{ color: 'var(--brand-cyan)' }}>{issue.key}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ border: '1px solid var(--stroke-low)', color: 'var(--text-med)' }}>
+            {issue.priority}
+          </span>
+          <span className="ml-auto text-[10px]" style={{ color: 'var(--text-subtle)' }}>
+            {issue.updated_at ? new Date(issue.updated_at).toLocaleDateString() : ''}
+          </span>
+        </div>
+        <div className="mt-1 text-sm" style={{ color: 'var(--text-high)' }}>{issue.title}</div>
+        <div className="mt-1 text-xs" style={{ color: 'var(--text-med)' }}>{issue.category}</div>
+      </div>
+    </article>
   );
 }
