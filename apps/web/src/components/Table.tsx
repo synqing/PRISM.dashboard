@@ -1,7 +1,8 @@
 import { ChevronDown, X, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { searchIssues } from '../lib/api';
 
-const tableData = [
+const fallbackData = [
   { id: 'PRISM-312', title: 'Add keyboard shortcuts for board navigation', category: 'Accessibility', priority: 'medium', status: 'Backlog', assignee: 'AK', labels: ['a11y', 'ux'], updated: '2 hours ago' },
   { id: 'PRISM-289', title: 'Design empty state for new users', category: 'Onboarding', priority: 'high', status: 'To Do', assignee: 'SL', labels: ['design', 'ux'], updated: '4 hours ago' },
   { id: 'PRISM-247', title: 'Glass effect performance regression', category: 'Performance', priority: 'critical', status: 'In Progress', assignee: 'JD', labels: ['bug', 'perf'], updated: '1 hour ago' },
@@ -12,10 +13,43 @@ const tableData = [
   { id: 'PRISM-267', title: 'Implement skeleton loading for table', category: 'Performance', priority: 'high', status: 'Review', assignee: 'JD', labels: ['perf', 'ux'], updated: '2 days ago' },
 ];
 
+type Row = { id: string; title: string; category: string; priority: string; status: string; assignee: string; labels: string[]; updated: string };
+
 export default function Table() {
   const [density, setDensity] = useState<'compact' | 'comfortable'>('comfortable');
   const [filters, setFilters] = useState<{ [key: string]: string }>({});
   const [focusedRow, setFocusedRow] = useState<number | null>(null);
+  const [rows, setRows] = useState<Row[]>(fallbackData as Row[]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await searchIssues("");
+        if (cancelled) return;
+        const mapped: Row[] = res.items.map((i: any) => ({
+          id: i.key,
+          title: i.title,
+          category: i.category ?? "",
+          priority: (i.priority || "P1").toLowerCase(),
+          status: i.status,
+          assignee: (i.assignee || "").slice(0, 2).toUpperCase(),
+          labels: Array.isArray(i.labels) ? i.labels : [],
+          updated: i.updated_at || "",
+        }));
+        setRows(mapped);
+      } catch (_e) {
+        // fall back to in-memory data
+        setRows(fallbackData as Row[]);
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const rowPadding = density === 'compact' ? 'py-2' : 'py-4';
 
@@ -137,7 +171,7 @@ export default function Table() {
               </tr>
             </thead>
             <tbody>
-              {tableData.map((row, index) => (
+              {(rows).map((row, index) => (
                 <tr
                   key={row.id}
                   className={`cursor-pointer transition-colors ${rowPadding}`}
