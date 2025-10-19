@@ -1,6 +1,7 @@
 import { ChevronDown, X, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { listIssues } from '../lib/api';
+import { TableFilters, type TableFiltersValue } from './TableFilters';
 
 const fallbackData = [
   { id: 'PRISM-312', title: 'Add keyboard shortcuts for board navigation', category: 'Accessibility', priority: 'medium', status: 'Backlog', assignee: 'AK', labels: ['a11y', 'ux'], updated: '2 hours ago' },
@@ -23,12 +24,23 @@ export default function Table() {
   const [loaded, setLoaded] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [total, setTotal] = useState<number | undefined>(undefined);
+  const [filters, setFilters] = useState<TableFiltersValue>({});
+  const pageSize = 100;
+  const filterSig = useMemo(()=>JSON.stringify(filters), [filters]);
+  const first = useRef(true);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await listIssues({ limit: 100 });
+        const params: any = { limit: pageSize };
+        if (filters.q) params.q = filters.q;
+        if (filters.assignee) params.assignee = filters.assignee;
+        if (filters.status) params.status = filters.status.split(',').map((s:string)=>s.trim()).filter(Boolean);
+        if (filters.category) params.category = filters.category.split(',').map((s:string)=>s.trim()).filter(Boolean);
+        if (filters.labels) params.labels = filters.labels.split(',').map((s:string)=>s.trim()).filter(Boolean);
+        const res = await listIssues(params);
         if (cancelled) return;
         const mapped: Row[] = res.items.map((i: any) => ({
           id: i.key,
@@ -42,6 +54,7 @@ export default function Table() {
         }));
         setRows(mapped);
         setNextCursor(res.nextCursor ?? null);
+        setTotal(res.total);
       } catch (_e) {
         // fall back to in-memory data
         setRows(fallbackData as Row[]);
@@ -53,13 +66,19 @@ export default function Table() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [filterSig]);
 
   const loadMore = async () => {
     if (!nextCursor) return;
     setLoadingMore(true);
     try {
-      const res = await listIssues({ limit: 100, cursor: nextCursor });
+      const params: any = { limit: pageSize, cursor: nextCursor };
+      if (filters.q) params.q = filters.q;
+      if (filters.assignee) params.assignee = filters.assignee;
+      if (filters.status) params.status = filters.status.split(',').map((s:string)=>s.trim()).filter(Boolean);
+      if (filters.category) params.category = filters.category.split(',').map((s:string)=>s.trim()).filter(Boolean);
+      if (filters.labels) params.labels = filters.labels.split(',').map((s:string)=>s.trim()).filter(Boolean);
+      const res = await listIssues(params);
       const mapped: Row[] = res.items.map((i: any) => ({
         id: i.key,
         title: i.title,
@@ -74,6 +93,7 @@ export default function Table() {
       const existing = new Set(rows.map((r) => r.id));
       setRows([...rows, ...mapped.filter((r) => !existing.has(r.id))]);
       setNextCursor(res.nextCursor ?? null);
+      setTotal(res.total ?? total);
     } catch (_e) {
       // swallow; keep existing
     } finally {
@@ -157,6 +177,14 @@ export default function Table() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Filters and hint */}
+      <div className="flex items-center gap-3 mb-3">
+        <TableFilters value={filters} onChange={setFilters} />
+        <div className="ml-auto" style={{ color: 'var(--text-med)', fontSize: 'var(--text-meta)' }}>
+          {total != null ? `Showing ${rows.length}${nextCursor ? '+' : ''} of ${total}` : `Showing ${rows.length}`}
+        </div>
       </div>
 
       {/* Table */}

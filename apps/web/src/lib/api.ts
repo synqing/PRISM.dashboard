@@ -23,7 +23,14 @@ export type ListIssuesParams = {
   cursor?: string | null;
 };
 
-export async function listIssues(params: ListIssuesParams = {}) {
+export type ListIssuesResponse = {
+  items: any[];
+  count: number;
+  nextCursor: string | null;
+  total?: number;
+};
+
+export async function listIssues(params: ListIssuesParams = {}): Promise<ListIssuesResponse> {
   const base = getApiBase();
   const url = new URL(`/api/issues`, base);
   const toCSV = (a?: string[]) => (a && a.length ? a.join(",") : undefined);
@@ -37,8 +44,10 @@ export async function listIssues(params: ListIssuesParams = {}) {
 
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`List failed: ${res.status}`);
-  const data = await res.json();
-  return data as { items: any[]; count: number; nextCursor: string | null; total?: number };
+  const json = (await res.json()) as ListIssuesResponse;
+  const headerTotal = Number(res.headers.get("X-Total-Count") || "");
+  if (json.total == null && Number.isFinite(headerTotal)) json.total = headerTotal;
+  return json;
 }
 
 export type Issue = {
