@@ -39,3 +39,34 @@ export async function listIssues(params: ListIssuesParams = {}) {
   if (!res.ok) throw new Error(`List failed: ${res.status}`);
   return (await res.json()) as { items: any[]; count: number; nextCursor: string | null };
 }
+
+export type Issue = {
+  id: string;
+  key: string;
+  title: string;
+  status: string;
+  category?: string;
+  priority?: string;
+  assignee?: string | null;
+  reporter?: string | null;
+  labels?: string[] | null;
+  updated_at?: string;
+};
+
+export async function transitionIssue(key: string, to: string): Promise<Issue> {
+  const base = getApiBase();
+  const resp = await fetch(`${base}/api/issues/${encodeURIComponent(key)}/transition`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ to }),
+  });
+  if (!resp.ok) {
+    let msg = `transition failed: ${resp.status}`;
+    try {
+      const data = await resp.json();
+      if (data?.error) msg = data.error;
+    } catch {}
+    throw new Error(msg);
+  }
+  return (await resp.json()) as Issue;
+}

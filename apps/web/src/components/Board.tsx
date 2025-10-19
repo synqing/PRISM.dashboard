@@ -1,12 +1,14 @@
 import { useBoard } from "../hooks/useBoard";
 import { STATUS_META } from "../config/board";
+import { NEXT_STATES, type Status } from "../config/workflow";
+import { useState } from "react";
 
 function cls(...a: (string | false | undefined)[]) {
   return a.filter(Boolean).join(" ");
 }
 
 export default function Board() {
-  const { columns, loading, error, refresh, totals } = useBoard();
+  const { columns, loading, error, refresh, totals, transition } = useBoard();
 
   return (
     <div className="p-8 space-y-6 overflow-auto h-full">
@@ -46,7 +48,7 @@ export default function Board() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
           {columns.map((col) => (
-            <BoardColumn key={col.status} {...col} />
+            <BoardColumn key={col.status} {...col} onTransition={transition} />
           ))}
         </div>
       )}
@@ -54,9 +56,11 @@ export default function Board() {
   );
 }
 
-type ColumnProps = ReturnType<typeof useBoard>["columns"][number];
+type ColumnProps = ReturnType<typeof useBoard>["columns"][number] & {
+  onTransition?: (issue: any, to: Status) => Promise<void>;
+};
 
-function BoardColumn({ status, items, wipLimit, count, breached }: ColumnProps) {
+function BoardColumn({ status, items, wipLimit, count, breached, onTransition }: ColumnProps) {
   const meta = STATUS_META[status as keyof typeof STATUS_META];
   return (
     <section
@@ -82,18 +86,33 @@ function BoardColumn({ status, items, wipLimit, count, breached }: ColumnProps) 
         {items.length === 0 ? (
           <div className="text-xs px-2 py-8 text-center" style={{ color: 'var(--text-subtle)' }}>No items</div>
         ) : (
-          items.map((it) => <Card key={it.id} issue={it} />)
+          items.map((it) => <Card key={it.id} issue={it} onTransition={onTransition} />)
         )}
       </div>
     </section>
   );
 }
 
-function Card({ issue }: { issue: any }) {
+function Card({ issue, onTransition }: { issue: any; onTransition?: (i:any,to:Status)=>Promise<void> }) {
+  const [menu, setMenu] = useState(false);
+  const legal = NEXT_STATES[issue.status as Status] || [];
+
+  async function handle(to: Status) {
+    setMenu(false);
+    if (!onTransition) return;
+    try {
+      await onTransition(issue, to);
+    } catch (e: any) {
+      alert(e?.message || 'Transition failed');
+    }
+  }
+
   return (
     <article
-      className="rounded-lg transition-colors"
+      className="group rounded-lg transition-colors focus-within:ring-2"
       style={{ border: '1px solid var(--stroke-low)', background: 'var(--surface-1)' }}
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key.toLowerCase() === 't' && legal.length) { setMenu(v=>!v); e.preventDefault(); } }}
     >
       <div className="p-2.5">
         <div className="flex items-center gap-2">
@@ -107,6 +126,35 @@ function Card({ issue }: { issue: any }) {
         </div>
         <div className="mt-1 text-sm" style={{ color: 'var(--text-high)' }}>{issue.title}</div>
         <div className="mt-1 text-xs" style={{ color: 'var(--text-med)' }}>{issue.category}</div>
+
+        {legal.length > 0 && (
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              className="text-[11px] px-2 py-1 rounded"
+              style={{ border: '1px solid var(--stroke-low)', color: 'var(--text-high)', background: 'var(--surface-2)' }}
+              onClick={() => setMenu((m) => !m)}
+              title="t — transition"
+            >
+              Transition ▾
+            </button>
+            {menu && (
+              <ul className="z-10 mt-1 rounded-lg"
+                style={{ border: '1px solid var(--stroke-low)', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(6px)' }}
+              >
+                {legal.map((to: Status) => (
+                  <li key={to}>
+                    <button
+                      className="w-full text-left text-[12px] px-2 py-1 rounded hover:bg-white/10"
+                      onClick={() => handle(to)}
+                    >
+                      → {to}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
     </article>
   );
