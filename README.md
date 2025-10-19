@@ -1,106 +1,171 @@
 
-# PRISM Dashboard UI Design
+<div align="center">
 
-High-fidelity React implementation of the PRISM v1 dashboard concept. The bundle recreates the Figma source (https://www.figma.com/design/ZNRC96bAw6M2Xo7TvluNxo/PRISM-Dashboard-UI-Design) with production-ready component abstractions, tokenized theming, and demo data to showcase the end-to-end interaction model.
+# PRISM Dashboard UI
 
-## Architecture Overview
+High‑fidelity React 18 dashboard implementing the PRISM design system with Tailwind v4, Radix UI primitives, and a production‑oriented theming model. Includes feature modules, visualization stack, and accessibility‑first defaults.
 
-- **Runtime**: React 18 + TypeScript, bootstrapped via Vite 6 for ESBuild-based dev server and Rollup production bundles (`src/main.tsx`, `src/App.tsx`).
-- **Styling**: Tailwind CSS v4 build output for reset/utility layers (`src/index.css`) combined with a handcrafted design-token sheet (`src/styles/globals.css`) that exports PRISM surfaces, typography, and chart palettes.
-- **Component primitives**: Radix UI headless primitives wrapped in local adapters under `src/components/ui`. These wrappers expose a consistent API, extend with PRISM tokens, and wire type-safe props.
-- **Visualization**: Recharts renders KPI bar/line combos and spark-lines (`src/components/Overview.tsx`). Embla Carousel powers scrollable galleries (`src/components/DesignSystem.tsx`, `src/components/Board.tsx`).
-- **State management**: Local React state only—no global stores. `App.tsx` orchestrates view toggles, glass effect switch, and command palette visibility.
-- **Interaction model**: Keyboard-friendly navigation (⌘/Ctrl + K summons the search palette), inspector overlay, automation flows, and empty-state explorations handled by dedicated view modules under `src/components`.
+![Tech](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
+![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite)
+![TailwindCSS](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss)
+![Radix UI](https://img.shields.io/badge/Radix%20UI-1.1-black)
 
-## UI Modules
+</div>
 
-- **Design System (`src/components/DesignSystem.tsx`)**  
-  Demonstrates token usage across surfaces, typography, motion, glass variants, and chart palettes.
-- **Overview (`src/components/Overview.tsx`)**  
-  High-level delivery metrics with KPI grid, dual-axis trends (`ResponsiveContainer`, `BarChart`, `LineChart`), and exception lists.
-- **Board / Table (`src/components/Board.tsx`, `src/components/Table.tsx`)**  
-  Kanban-style swim lanes and analytical table view with custom filters, density controls, and Radix-powered dropdowns.
-- **Inspector (`src/components/Inspector.tsx`)**  
-  Drawer-like panel inspected via toggled state in `App.tsx`, reusing `ui/drawer.tsx` primitives and glass fallback logic.
-- **PlanTM / Automations / EmptyStates / SearchPalette**  
-  Narrative walkthroughs of planning rituals, automation builders, empty-state choreography, and the command palette experience (includes fuzzy search via `cmdk`).
+## Table of Contents
 
-Each module is lazy-loaded at runtime through conditional rendering—no code splitting required for this showcase, but the structure keeps views isolated and reusable.
+- Overview
+- Feature Highlights
+- Tech Stack
+- Architecture
+- Theming Strategy
+- Component Catalog
+- Visualization Stack
+- Setup
+- Build & Deploy
+- Project Structure
+- Accessibility
+- Keyboard Shortcuts
+- Credits
 
-## Design Tokens and Theming
+## Overview
 
-- `src/styles/globals.css` defines the complete PRISM token dictionary: multi-level surfaces, WCAG-compliant typography colors, accent hues, stroke opacities, focus rings, glass overlays, chart palettes, radii, and base typography scale.
-- CSS custom properties are surfaced via Tailwind v4 `@layer` and `@theme inline` directives, allowing both utility classes (`bg-surface-1`, `text-text-high`) and vanilla inline styles to resolve to the same palette.
-- Scrollbars, reduced-motion fallbacks, and global typography defaults are declared once in the global sheet to guarantee consistency across modules.
+This repository recreates the PRISM Dashboard UI (Figma source: https://www.figma.com/design/ZNRC96bAw6M2Xo7TvluNxo/PRISM-Dashboard-UI-Design) as a coded reference implementation. It emphasizes design tokens, accessible primitives, and modular views to make the UI easy to extend with real data.
 
-## Component Library Wrappers
+## Feature Highlights
 
-The `src/components/ui` directory wraps Radix primitives (accordion, alert-dialog, command, navigation-menu, etc.), adds PRISM classNames, and centralizes variant logic. These adapters provide:
+- Design System view demonstrating tokens, surfaces, typography, glass overlays, and chart palettes.
+- Overview analytics with KPI grid, bar/line trends, and exception feed.
+- Board and Table views for planning and analysis workflows.
+- Inspector panel and Search/Command Palette (⌘/Ctrl + K).
+- Automations builder and rich Empty States for UX clarity.
 
-- Tailwind-compatible slot APIs (`class-variance-authority`, `tailwind-merge`).
-- TypeScript inference for refs and discriminated unions.
-- Visual defaults aligned with PRISM tokens (focus rings, radii, glass backgrounds).
-- Utility hooks for responsive behavior (`use-mobile.ts`) and layout helpers (`sidebar.tsx`, `resizable.tsx`).
+## Tech Stack
 
-## Data and Demo Content
+- React 18 + TypeScript
+- Vite 6 (SWC React plugin) for dev/build
+- Tailwind CSS v4 reset/utilities (`src/index.css`)
+- Radix UI headless primitives wrapped locally
+- Recharts for charts, Embla Carousel for galleries
+- Lucide icons, cmdk for command palette
 
-- Demo metrics and copy live alongside components (e.g., KPI arrays in `Overview.tsx`, board column definitions in `Board.tsx`).
-- The dataset favors deterministic arrays for deterministic renders—no network fetches required.
-- Command palette options mirror nav items and embed Quick Actions to illustrate app-level shortcuts.
+## Architecture
+
+- App Shell (`src/App.tsx`): Layout, navigation, view switching, toggles (glass effects, palette visibility).
+- View Modules (`src/components/*.tsx`): Self‑contained feature views (Design System, Overview, Board, Table, Inspector, PlanTM, Automations, Empty States, Search Palette).
+- UI Primitives (`src/components/ui/*`): Typed wrappers around Radix UI components with PRISM token defaults and utility helpers.
+- Styling (`src/index.css`, `src/styles/globals.css`): Tailwind v4 layers + a design‑token sheet supplying surfaces, text, brand, strokes, focus, glass, chart palettes, and typography scale.
+- State: Local React state; no global store required for showcase.
+
+```
+[App Shell]
+   ├─ toggles / routing-by-view
+   └─ renders one [View Module]
+        ├─ consumes [UI Primitives]
+        └─ styled via [PRISM Tokens]
+```
+
+## Theming Strategy
+
+Custom properties in `src/styles/globals.css` define the PRISM palette and semantics. Tailwind v4 `@layer` + `@theme inline` expose tokens as utilities and variables.
+
+Core token groups:
+- Surfaces: `--surface-0 … --surface-3` + overlays
+- Text: `--text-high`, `--text-med`, `--text-subtle`
+- Brand/Accents: `--brand-cyan`, `--brand-violet`, info/success/warning/danger
+- Strokes/Focus: `--stroke-low/med/high`, `--focus-ring`
+- Glass: `--glass-bg`, `--glass-stroke`
+- Charts: Okabe–Ito palette (`--chart-okabe-1 … 8`)
+- Typography: scale (`--text-display … --text-micro`) and weights
+
+Example (excerpt):
+
+```css
+:root {
+  --surface-0: #0B0D12;
+  --surface-1: #121826;
+  --text-high: rgba(255,255,255,0.92);
+  --brand-cyan: #6EE7F3;
+  --focus-ring: #A7E9EF;
+}
+```
+
+## Component Catalog
+
+Radix‑based primitives live under `src/components/ui/` and are themed with PRISM classes/variables.
+
+- Overlay: `dialog`, `drawer`, `sheet`, `tooltip`, `popover`, `hover-card`, `alert-dialog`
+- Navigation: `navigation-menu`, `menubar`, `sidebar`, `breadcrumb`, `tabs`
+- Inputs & Forms: `input`, `textarea`, `checkbox`, `radio-group`, `select`, `slider`, `switch`, `input-otp`, `label`, `form`
+- Data Display: `table`, `card`, `badge`, `progress`, `skeleton`, `separator`, `pagination`
+- Layout & Behavior: `accordion`, `collapsible`, `resizable`, `scroll-area`, `aspect-ratio`, `avatar`
+- Command: `command` (cmdk-powered palette)
+
+## Visualization Stack
+
+- Recharts drives analytics in `Overview.tsx` (`ResponsiveContainer`, `BarChart`, `LineChart`, `Bar`, `Line`) with token‑mapped colors and accessible axes.
+- Embla Carousel powers gallery‑style content where applicable.
+
+## Setup
+
+Requirements: Node 18+ and npm.
+
+```bash
+npm install
+npm run dev
+```
+
+Open the dev URL (typically `http://localhost:5173`). Use ⌘/Ctrl + K for the command palette. Toggle “Glass Effects” in the left rail to compare glass vs. matte overlays.
+
+## Build & Deploy
+
+```bash
+npm run build
+```
+
+Outputs optimized assets to `dist/` (Rollup via Vite). Deploy `dist/` to any static host/CDN (e.g., Netlify, Vercel, S3, Cloudflare Pages).
 
 ## Project Structure
 
 ```
 .
-├── index.html                 # Vite entry shell
-├── package.json               # Dependencies and scripts
+├── index.html
+├── package.json
 ├── src
-│   ├── App.tsx                # Shell layout, nav, and view switching
-│   ├── main.tsx               # Vite bootstrap
-│   ├── index.css              # Tailwind v4 reset + utilities
-│   ├── styles/globals.css     # PRISM design tokens and global styles
-│   ├── components
-│   │   ├── *.tsx              # Feature views (Overview, Board, Inspector, etc.)
-│   │   ├── figma              # Fallback helpers (e.g., image loader)
-│   │   └── ui                 # Radix component wrappers + utilities
-│   └── guidelines             # Placeholder for additional system guidance
-└── vite.config.ts             # Vite + SWC React configuration
+│   ├── App.tsx
+│   ├── main.tsx
+│   ├── index.css
+│   ├── styles/
+│   │   └── globals.css
+│   ├── components/
+│   │   ├── *.tsx                # Feature views
+│   │   ├── figma/               # Fallback helpers
+│   │   └── ui/                  # Radix wrappers + utils
+│   └── guidelines/
+└── vite.config.ts
 ```
 
-## Getting Started
+## Accessibility
 
-1. Install dependencies (Node 18+ recommended):
-   ```bash
-   npm install
-   ```
-2. Launch the dev server with hot-module replacement:
-   ```bash
-   npm run dev
-   ```
-3. Open the surfaced URL (default `http://localhost:5173`) to explore the dashboard. Use ⌘/Ctrl + K to open the command palette, and toggle "Glass Effects" in the left rail to inspect overlay variants.
+- WCAG AA contrast across dark surfaces; clear focus rings via `--focus-ring`.
+- Radix primitives ensure keyboard operability, ARIA roles, focus management, and escape‑to‑close behaviors.
+- Reduced‑motion query disables non‑essential animation; matte fallbacks for glass overlays.
+- Semantic headings and labels in key views; table/graph text sized for legibility (`--text-meta`/`--text-micro` carefully scoped).
 
-## Build and Deployment
+## Keyboard Shortcuts
 
-- Production bundles:
-  ```bash
-  npm run build
-  ```
-  Generates optimized assets under `dist/` using Vite’s Rollup pipeline.
-- Static hosting ready—serve `dist/` via any CDN or static web host (Netlify, Vercel, S3).
+- ⌘/Ctrl + K — Open command palette
 
-## Accessibility and Quality Considerations
+## Credits
 
-- Color tokens satisfy WCAG AA contrast on the dark surface stack; focus rings use a dedicated `--focus-ring` token for visibility.
-- Radix primitives provide keyboard navigation, ARIA attributes, and focus trapping for dialogs, popovers, menus, and command palette.
-- Reduced-motion media query short-circuits animations, and the glass effect toggle lets low-power users fall back to matte surfaces.
+- Design reference: PRISM Dashboard UI (Figma)
+- Icons: `lucide-react`
+- Charts: `recharts`
+- Carousel: `embla-carousel-react`
+- Command Palette: `cmdk`
 
-## Origin and Credits
+—
 
-- Visual source of truth: PRISM Dashboard UI Design Figma file.
-- Iconography: `lucide-react`.
-- Charts: `recharts`.
-- Carousel: `embla-carousel-react`.
-- Command palette: `cmdk`.
-
-This repository captures the visual + interaction spec as code, providing a baseline for engineering teams to integrate real data and application logic.
+This codebase captures the visual + interaction spec as maintainable React components, ready to plug into real data and application logic.
   
