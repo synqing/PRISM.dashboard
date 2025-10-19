@@ -60,9 +60,12 @@ issues.get("/", async (req, res) => {
     params.push(labelList);
   }
 
+  // Full-text search (FTS) when q is present; fallback to filters-only when absent
+  let ftsQuerySql: string | null = null;
   if (q && q.trim()) {
-    where.push(`(i.title ilike $${params.length + 1} or i.details ilike $${params.length + 2})`);
-    params.push(`%${q}%`, `%${q}%`);
+    ftsQuerySql = `websearch_to_tsquery('english', $${params.length + 1})`;
+    where.push(`(i.issue_fts @@ ${ftsQuerySql})`);
+    params.push(q.trim());
   }
 
   const cur = decodeCursor(cursor);
@@ -73,14 +76,16 @@ issues.get("/", async (req, res) => {
 
   const whereClause = where.length ? `where ${where.join(" and ")}` : "";
 
+  const rankSelect = ftsQuerySql ? `, ts_rank_cd(i.issue_fts, ${ftsQuerySql}, 32) as rank` : ``;
+
   const sql = `
-    select i.*
+    select i.* ${rankSelect}
     from issue i
     ${whereClause}
-    order by i.updated_at desc, i.id desc
+    order by ${ftsQuerySql ? `rank desc, i.updated_at desc` : `i.updated_at desc, i.id desc`}
     limit $${params.length + 1}
   `;
-  // count + list in parallel
+  // count + list in parallel (count does not use rank)
   const countSql = `select count(*)::int as n from issue i ${whereClause}`;
   const [countRes, listRes] = await Promise.all([
     query<{ n: number }>(countSql, params),
